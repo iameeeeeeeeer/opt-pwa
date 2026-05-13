@@ -223,11 +223,11 @@ async function loadView(dateOverride) {
 function syncTabs() {
   if (!elements.tabs) return;
   elements.tabs.innerHTML = viewList.map((view, index) => (
-    `<button class="tab ${view.id === state.view ? "is-active" : ""}" data-view="${escapeHtml(view.id)}" type="button">${escapeHtml(view.label || `View ${index + 1}`)}</button>`
+    `<button class="tab ${view.id === state.view ? "is-active" : ""}" data-k="${escapeHtml(view.id)}" type="button">${escapeHtml(view.label || `Item ${index + 1}`)}</button>`
   )).join("");
   elements.tabs.querySelectorAll(".tab").forEach(tab => {
     tab.addEventListener("click", () => {
-      state.view = tab.dataset.view;
+      state.view = tab.dataset.k;
       state.sortKey = null;
       state.selectedColumns = [];
       state.filters = {};
