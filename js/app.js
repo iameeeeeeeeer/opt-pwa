@@ -9,6 +9,10 @@ import {
   getLayoutConfig,
   getViewPayload
 } from "./crypto-data.js";
+import {
+  createPushRegistrationCode,
+  isPushSupported
+} from "./push-registration.js";
 
 let layoutConfig = null;
 let viewList = [];
@@ -75,6 +79,7 @@ const elements = {
   keyPanelStatus: document.getElementById("keyPanelStatus"),
   createKeyButton: document.getElementById("createKeyButton"),
   showRegistrationButton: document.getElementById("showRegistrationButton"),
+  pushRegistrationButton: document.getElementById("pushRegistrationButton"),
   clearKeyButton: document.getElementById("clearKeyButton"),
   clearConfirm: document.getElementById("clearConfirm"),
   confirmClearKeyButton: document.getElementById("confirmClearKeyButton"),
@@ -155,6 +160,16 @@ elements.showRegistrationButton?.addEventListener("click", async () => {
   setClearConfirmOpen(false);
   const code = await getDeviceRegistrationCode();
   if (code) await showRegistrationCode(code);
+});
+elements.pushRegistrationButton?.addEventListener("click", async () => {
+  devicePanelOpen = true;
+  setClearConfirmOpen(false);
+  try {
+    await showRegistrationCode(await createPushRegistrationCode());
+    elements.keyPanelStatus.textContent = "通知註冊碼已建立";
+  } catch (error) {
+    await syncKeyPanel(error.message || "通知無法啟用");
+  }
 });
 elements.clearKeyButton?.addEventListener("click", async () => {
   devicePanelOpen = true;
@@ -289,7 +304,7 @@ function syncDateSelect(payload, selectedValue, view) {
   if (!exactDatesOnly) {
     options.push({ value: "latest", label: "最新日期" });
   }
-  dates.slice(0, 40).forEach(date => options.push({ value: date, label: date }));
+  dates.slice(0, 40).forEach(date => options.push({ value: date, label: displayDate(date) }));
   const optionHtml = options
     .map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
     .join("");
@@ -645,15 +660,15 @@ function basename(path) {
   return parts[parts.length - 1] || path;
 }
 
-function formatDateForTitle(date) {
-  return date ? String(date).replaceAll("-", "/") : layoutConfig?.app_title || "Mobile Viewer";
+function displayDate(date, fallback = "") {
+  return date ? String(date).replaceAll("-", "/") : fallback;
 }
 
 function formatSourceDate(payload) {
   if (payload.s?.length > 1) {
-    return isCompactLayout() ? `${payload.s[0]} 等 ${payload.s.length} 日` : payload.s.join(" ~ ");
+    return isCompactLayout() ? `${displayDate(payload.s[0])} 等 ${payload.s.length} 日` : payload.s.map(displayDate).join(" ~ ");
   }
-  return payload.d || "-";
+  return displayDate(payload.d, "-");
 }
 
 function formatDisplayValue(value, valueType = "") {
@@ -712,6 +727,9 @@ async function syncKeyPanel(errorMessage = "") {
   }
   elements.createKeyButton.hidden = device.hasKey;
   elements.showRegistrationButton.hidden = !device.hasKey;
+  if (elements.pushRegistrationButton) {
+    elements.pushRegistrationButton.hidden = !device.hasKey || !isPushSupported();
+  }
   elements.clearKeyButton.hidden = !device.hasKey;
   setClearConfirmOpen(clearConfirmOpen && device.hasKey);
   elements.keyPanelTitle.textContent = device.hasKey ? "裝置已建立" : "裝置尚未建立";

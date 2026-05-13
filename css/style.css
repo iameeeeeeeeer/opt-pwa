@@ -51,6 +51,7 @@ h1 {
 }
 
 .header-title {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -76,10 +77,12 @@ h1 {
   color: var(--text);
   font-size: 24px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   line-height: 1.2;
   min-height: 0;
-  max-width: min(60vw, 240px);
+  max-width: min(68vw, 260px);
   padding: 0 30px 0 0;
+  width: calc(10ch + 36px);
 }
 
 p {
@@ -239,6 +242,7 @@ body.has-install-hint main {
   display: flex;
   flex: 0 0 auto;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .clear-confirm {
@@ -432,8 +436,9 @@ td.number {
   }
 
   .header-date-control select {
-    font-size: 30px;
-    max-width: min(58vw, 220px);
+    font-size: 28px;
+    max-width: min(70vw, 250px);
+    width: calc(10ch + 34px);
   }
 
   p {
@@ -448,7 +453,7 @@ td.number {
 
   .key-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 
   .clear-confirm {
@@ -650,7 +655,7 @@ td.number {
   body[data-layout="primary_cards"] .header-date-control select,
   body[data-layout="metric_bars"] .header-date-control select,
   body[data-layout="grouped_cards"] .header-date-control select {
-    font-size: 30px;
+    font-size: 28px;
   }
 
   body[data-layout="primary_cards"] .primary-control,
