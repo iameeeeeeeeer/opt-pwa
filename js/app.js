@@ -6,11 +6,11 @@ import {
   getDeviceRegistrationCode,
   getDeviceState,
   getStatusPayload,
-  getUiSchema,
+  getLayoutConfig,
   getViewPayload
 } from "./crypto-data.js";
 
-let uiSchema = null;
+let layoutConfig = null;
 let viewList = [];
 let viewMap = new Map();
 
@@ -85,7 +85,7 @@ const elements = {
 
 elements.refreshButton.addEventListener("click", () => {
   clearPayloadCache();
-  uiSchema = null;
+  layoutConfig = null;
   viewList = [];
   viewMap = new Map();
   loadApp();
@@ -157,7 +157,7 @@ loadApp();
 async function loadApp() {
   elements.offlineBanner.hidden = true;
   try {
-    await loadSchema();
+    await loadLayoutConfig();
     await loadStatus();
     await loadView();
   } catch (error) {
@@ -167,12 +167,12 @@ async function loadApp() {
   }
 }
 
-async function loadSchema() {
-  uiSchema = await getUiSchema();
-  viewList = uiSchema.views || [];
+async function loadLayoutConfig() {
+  layoutConfig = await getLayoutConfig();
+  viewList = layoutConfig.views || [];
   viewMap = new Map(viewList.map(view => [view.id, view]));
   if (!state.view || !viewMap.has(state.view)) {
-    state.view = uiSchema.default_view || viewList[0]?.id || "";
+    state.view = layoutConfig.default_view || viewList[0]?.id || "";
   }
   syncTabs();
   syncStaticLabels();
@@ -182,7 +182,7 @@ async function loadStatus() {
   try {
     const status = await getStatusPayload();
     const version = status.v || {};
-    const segments = uiSchema?.status_segments || [];
+    const segments = layoutConfig?.status_segments || [];
     state.statusText = segments.length
       ? segments.map(segment => `${segment.label} ${version[segment.version_key] || "-"}`).join(" / ")
       : "";
@@ -491,7 +491,7 @@ function syncHeader(payload = state.payload) {
     elements.statusLine.textContent = filterText ? `${view.label} / ${filterText}` : view.label;
     elements.refreshButton.textContent = "更新";
   } else {
-    elements.appTitle.textContent = uiSchema?.app_title || "Mobile Viewer";
+    elements.appTitle.textContent = layoutConfig?.app_title || "Mobile Viewer";
     elements.statusLine.textContent = state.statusText || elements.statusLine.textContent;
     elements.refreshButton.textContent = "Refresh";
   }
@@ -605,7 +605,7 @@ function basename(path) {
 }
 
 function formatDateForTitle(date) {
-  return date ? String(date).replaceAll("-", "/") : uiSchema?.app_title || "Mobile Viewer";
+  return date ? String(date).replaceAll("-", "/") : layoutConfig?.app_title || "Mobile Viewer";
 }
 
 function formatSourceDate(payload) {

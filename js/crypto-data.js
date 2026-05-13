@@ -77,32 +77,32 @@ export function clearPayloadCache() {
 
 export async function getStatusPayload() {
   const bundle = await loadDecryptedPayload();
-  if (!bundle.status) {
+  if (!bundle.s) {
     throw new Error("資料封包缺少狀態資訊");
   }
-  return bundle.status;
+  return bundle.s;
 }
 
 export async function getViewPayload(kind, date) {
   const bundle = await loadDecryptedPayload();
-  const view = bundle.views?.[kind];
-  if (!view?.queries) {
+  const view = bundle.x?.[kind];
+  if (!view?.q) {
     throw new Error("資料封包缺少視圖資料");
   }
   const normalizedDate = String(date || "latest").replaceAll("_", "-");
-  const payload = view.queries[normalizedDate] || view.queries.latest;
+  const payload = view.q[normalizedDate] || view.q.latest;
   if (!payload) {
     throw new Error("資料封包缺少指定日期");
   }
   return payload;
 }
 
-export async function getUiSchema() {
+export async function getLayoutConfig() {
   const bundle = await loadDecryptedPayload();
-  if (!bundle.ui_schema?.views?.length) {
+  if (!bundle.u?.views?.length) {
     throw new Error("資料封包缺少介面設定");
   }
-  return bundle.ui_schema;
+  return bundle.u;
 }
 
 async function loadDecryptedPayload() {
