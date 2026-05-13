@@ -1,8 +1,8 @@
-const DB_NAME = "option-pwa-device-keys";
+const DB_NAME = "static-viewer-device";
 const DB_VERSION = 1;
 const STORE_NAME = "keys";
 const DEVICE_KEY_ID = "primary-device";
-const ENVELOPE_CALLBACK_PREFIX = "__optionPwaEnvelope";
+const ENVELOPE_CALLBACK_PREFIX = "__staticPack";
 
 let cachedPayloadPromise = null;
 
@@ -42,12 +42,12 @@ export async function createDeviceRegistrationCode() {
   await putDeviceRecord(record);
   cachedPayloadPromise = null;
   return JSON.stringify({
-    schema_version: "option-pwa-device-registration-v1",
-    device_id: deviceId,
-    label: record.label,
-    algorithm: "RSA-OAEP-SHA256",
-    public_key_spki_b64: arrayBufferToBase64(publicKeySpki),
-    created_at: createdAt
+    v: "device-registration-v1",
+    i: deviceId,
+    l: record.label,
+    a: "RSA-OAEP-SHA256",
+    k: arrayBufferToBase64(publicKeySpki),
+    t: createdAt
   }, null, 2);
 }
 
@@ -56,12 +56,12 @@ export async function getDeviceRegistrationCode() {
   if (!record?.publicKey) return "";
   const publicKeySpki = await crypto.subtle.exportKey("spki", record.publicKey);
   return JSON.stringify({
-    schema_version: "option-pwa-device-registration-v1",
-    device_id: record.deviceId,
-    label: record.label,
-    algorithm: "RSA-OAEP-SHA256",
-    public_key_spki_b64: arrayBufferToBase64(publicKeySpki),
-    created_at: record.createdAt
+    v: "device-registration-v1",
+    i: record.deviceId,
+    l: record.label,
+    a: "RSA-OAEP-SHA256",
+    k: arrayBufferToBase64(publicKeySpki),
+    t: record.createdAt
   }, null, 2);
 }
 
@@ -78,7 +78,7 @@ export function clearPayloadCache() {
 export async function getStatusPayload() {
   const bundle = await loadDecryptedPayload();
   if (!bundle.status) {
-    throw new Error("解密資料缺少 status payload");
+    throw new Error("資料封包缺少狀態資訊");
   }
   return bundle.status;
 }
@@ -87,14 +87,22 @@ export async function getViewPayload(kind, date) {
   const bundle = await loadDecryptedPayload();
   const view = bundle.views?.[kind];
   if (!view?.queries) {
-    throw new Error(`解密資料缺少 ${kind} payload`);
+    throw new Error("資料封包缺少視圖資料");
   }
   const normalizedDate = String(date || "latest").replaceAll("_", "-");
   const payload = view.queries[normalizedDate] || view.queries.latest;
   if (!payload) {
-    throw new Error(`解密資料沒有 ${kind}/${normalizedDate}`);
+    throw new Error("資料封包缺少指定日期");
   }
   return payload;
+}
+
+export async function getUiSchema() {
+  const bundle = await loadDecryptedPayload();
+  if (!bundle.ui_schema?.views?.length) {
+    throw new Error("資料封包缺少介面設定");
+  }
+  return bundle.ui_schema;
 }
 
 async function loadDecryptedPayload() {
@@ -114,28 +122,28 @@ async function loadDecryptedPayloadOnce() {
     throw new Error("此手機尚未建立解密金鑰");
   }
   const envelope = await loadEnvelopeJsonp(config.encryptedDataEndpoint);
-  const recipient = envelope.recipients?.find(item => item.device_id === record.deviceId);
-  if (!recipient?.encrypted_data_key_b64) {
+  const recipient = envelope.r?.find(item => item.i === record.deviceId);
+  if (!recipient?.k) {
     throw new Error("此手機尚未授權或金鑰已失效");
   }
   const dataKeyBytes = await crypto.subtle.decrypt(
     { name: "RSA-OAEP" },
     record.privateKey,
-    base64ToArrayBuffer(recipient.encrypted_data_key_b64)
+    base64ToArrayBuffer(recipient.k)
   );
   const aesKey = await crypto.subtle.importKey("raw", dataKeyBytes, { name: "AES-GCM" }, false, ["decrypt"]);
-  const ciphertext = base64ToArrayBuffer((envelope.ciphertext_chunks || []).join(""));
-  const aadText = envelope.aad || config.cryptoAad || "option-pwa-envelope-v1";
+  const packedBytes = base64ToArrayBuffer((envelope.d || []).join(""));
+  const aadText = config.cryptoAad || "static-envelope-v1";
   const compressedPlaintext = await crypto.subtle.decrypt(
     {
       name: "AES-GCM",
-      iv: new Uint8Array(base64ToArrayBuffer(envelope.iv_b64)),
+      iv: new Uint8Array(base64ToArrayBuffer(envelope.n)),
       additionalData: new TextEncoder().encode(aadText)
     },
     aesKey,
-    ciphertext
+    packedBytes
   );
-  const plaintext = envelope.payload_encoding === "gzip+json"
+  const plaintext = envelope.e === "gzip"
     ? await gunzip(compressedPlaintext)
     : compressedPlaintext;
   return JSON.parse(new TextDecoder().decode(plaintext));
@@ -154,7 +162,7 @@ function loadEnvelopeJsonp(endpoint) {
     const script = document.createElement("script");
     const timeout = window.setTimeout(() => {
       cleanup();
-      reject(new Error("Apps Script encrypted envelope timeout"));
+      reject(new Error("資料封包讀取逾時"));
     }, 20000);
 
     function cleanup() {
@@ -169,7 +177,7 @@ function loadEnvelopeJsonp(endpoint) {
     };
     script.onerror = () => {
       cleanup();
-      reject(new Error("無法載入 Apps Script encrypted envelope"));
+      reject(new Error("無法載入資料封包"));
     };
     script.src = url.toString();
     document.head.appendChild(script);

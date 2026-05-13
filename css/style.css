@@ -299,8 +299,8 @@ select[multiple] {
   margin-bottom: 14px;
 }
 
-.mobile-pcratio-detail,
-.mobile-largetrader-detail {
+.mobile-primary-detail,
+.mobile-grouped-detail {
   display: none;
 }
 
@@ -418,14 +418,14 @@ td.number {
     min-width: 0;
   }
 
-  .expiry-control {
+  .primary-control {
     min-width: 0;
   }
 
-  .identity-control,
-  .option-type-control,
-  .homework-expiry-control,
-  .side-control,
+  .secondary-control-a,
+  .secondary-control-b,
+  .tertiary-control,
+  .choice-control,
   .metric-control,
   .threshold-control {
     min-width: 0;
@@ -497,86 +497,86 @@ td.number {
     max-height: none;
   }
 
-  body[data-view="pcratio"] .chart-shell {
+  body[data-layout="primary_cards"] .chart-shell {
     display: none;
   }
 
-  body[data-view="pcratio"] .filter-toggle,
-  body[data-view="homework"] .filter-toggle,
-  body[data-view="largetrader"] .filter-toggle,
-  body[data-view="pcratio"] .secondary-controls,
-  body[data-view="homework"] .secondary-controls {
+  body[data-layout="primary_cards"] .filter-toggle,
+  body[data-layout="metric_bars"] .filter-toggle,
+  body[data-layout="grouped_cards"] .filter-toggle,
+  body[data-layout="primary_cards"] .secondary-controls,
+  body[data-layout="metric_bars"] .secondary-controls {
     display: none !important;
   }
 
-  body[data-view="homework"] .toolbar,
-  body[data-view="largetrader"] .toolbar {
+  body[data-layout="metric_bars"] .toolbar,
+  body[data-layout="grouped_cards"] .toolbar {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
-  body[data-view="homework"] .date-control,
-  body[data-view="homework"] .metric-control,
-  body[data-view="homework"] .threshold-control,
-  body[data-view="largetrader"] .date-control {
+  body[data-layout="metric_bars"] .date-control,
+  body[data-layout="metric_bars"] .metric-control,
+  body[data-layout="metric_bars"] .threshold-control,
+  body[data-layout="grouped_cards"] .date-control {
     grid-column: 1 / -1;
   }
 
-  body[data-view="pcratio"] .metrics,
-  body[data-view="homework"] .metrics,
-  body[data-view="homework"] .table-shell,
-  body[data-view="largetrader"] .metrics,
-  body[data-view="largetrader"] .chart-shell,
-  body[data-view="largetrader"] .table-shell,
-  body[data-view="pcratio"] .table-shell {
+  body[data-layout="primary_cards"] .metrics,
+  body[data-layout="metric_bars"] .metrics,
+  body[data-layout="metric_bars"] .table-shell,
+  body[data-layout="grouped_cards"] .metrics,
+  body[data-layout="grouped_cards"] .chart-shell,
+  body[data-layout="grouped_cards"] .table-shell,
+  body[data-layout="primary_cards"] .table-shell {
     display: none;
   }
 
-  body[data-view="pcratio"] .app-header,
-  body[data-view="homework"] .app-header,
-  body[data-view="largetrader"] .app-header {
+  body[data-layout="primary_cards"] .app-header,
+  body[data-layout="metric_bars"] .app-header,
+  body[data-layout="grouped_cards"] .app-header {
     padding-bottom: 14px;
   }
 
-  body[data-view="pcratio"] #statusLine,
-  body[data-view="homework"] #statusLine,
-  body[data-view="largetrader"] #statusLine {
+  body[data-layout="primary_cards"] #statusLine,
+  body[data-layout="metric_bars"] #statusLine,
+  body[data-layout="grouped_cards"] #statusLine {
     font-size: 18px;
   }
 
-  body[data-view="pcratio"] .tabs,
-  body[data-view="homework"] .tabs,
-  body[data-view="largetrader"] .tabs {
+  body[data-layout="primary_cards"] .tabs,
+  body[data-layout="metric_bars"] .tabs,
+  body[data-layout="grouped_cards"] .tabs {
     padding-top: 12px;
   }
 
-  body[data-view="pcratio"] .tab,
-  body[data-view="homework"] .tab,
-  body[data-view="largetrader"] .tab,
-  body[data-view="pcratio"] select,
-  body[data-view="homework"] select,
-  body[data-view="largetrader"] select {
+  body[data-layout="primary_cards"] .tab,
+  body[data-layout="metric_bars"] .tab,
+  body[data-layout="grouped_cards"] .tab,
+  body[data-layout="primary_cards"] select,
+  body[data-layout="metric_bars"] select,
+  body[data-layout="grouped_cards"] select {
     font-size: 22px;
   }
 
-  body[data-view="pcratio"] .expiry-control,
-  body[data-view="homework"] .homework-expiry-control,
-  body[data-view="homework"] .side-control,
-  body[data-view="homework"] .metric-control,
-  body[data-view="homework"] .threshold-control,
-  body[data-view="largetrader"] .identity-control,
-  body[data-view="largetrader"] .option-type-control {
+  body[data-layout="primary_cards"] .primary-control,
+  body[data-layout="metric_bars"] .tertiary-control,
+  body[data-layout="metric_bars"] .choice-control,
+  body[data-layout="metric_bars"] .metric-control,
+  body[data-layout="metric_bars"] .threshold-control,
+  body[data-layout="grouped_cards"] .secondary-control-a,
+  body[data-layout="grouped_cards"] .secondary-control-b {
     color: var(--muted);
     font-size: 17px;
   }
 
-  body[data-view="pcratio"] .mobile-pcratio-detail:not([hidden]) {
+  body[data-layout="primary_cards"] .mobile-primary-detail:not([hidden]) {
     display: grid;
     gap: 10px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-bottom: 16px;
   }
 
-  body[data-view="largetrader"] .mobile-largetrader-detail:not([hidden]) {
+  body[data-layout="grouped_cards"] .mobile-grouped-detail:not([hidden]) {
     display: grid;
     gap: 14px;
     margin-bottom: 16px;

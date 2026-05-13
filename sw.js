@@ -1,4 +1,4 @@
-const CACHE_VERSION = "option-pwa-v28-encrypted-google-sheets";
+const CACHE_VERSION = "static-viewer-v29";
 const SHELL_PATHS = [
   "./",
   "config.js",

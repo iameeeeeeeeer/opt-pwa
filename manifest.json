@@ -1,6 +1,6 @@
 {
-  "name": "台灣選擇權分析",
-  "short_name": "選權分析",
+  "name": "Mobile Viewer",
+  "short_name": "Viewer",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
