@@ -80,9 +80,9 @@ h1 {
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
   min-height: 0;
-  max-width: min(76vw, 290px);
+  max-width: min(72vw, 264px);
   padding: 0 30px 0 0;
-  width: calc(11ch + 38px);
+  width: calc(10.6ch + 30px);
 }
 
 p {
@@ -436,9 +436,9 @@ td.number {
   }
 
   .header-date-control select {
-    font-size: 28px;
-    max-width: min(76vw, 280px);
-    width: calc(11ch + 36px);
+    font-size: 27px;
+    max-width: min(72vw, 260px);
+    width: calc(10.6ch + 30px);
   }
 
   p {
@@ -655,7 +655,7 @@ td.number {
   body[data-layout="primary_cards"] .header-date-control select,
   body[data-layout="metric_bars"] .header-date-control select,
   body[data-layout="grouped_cards"] .header-date-control select {
-    font-size: 28px;
+    font-size: 27px;
   }
 
   body[data-layout="primary_cards"] .primary-control,
