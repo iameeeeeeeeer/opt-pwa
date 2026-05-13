@@ -80,9 +80,9 @@ h1 {
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
   min-height: 0;
-  max-width: min(68vw, 260px);
+  max-width: min(76vw, 290px);
   padding: 0 30px 0 0;
-  width: calc(10ch + 36px);
+  width: calc(11ch + 38px);
 }
 
 p {
@@ -437,8 +437,8 @@ td.number {
 
   .header-date-control select {
     font-size: 28px;
-    max-width: min(70vw, 250px);
-    width: calc(10ch + 34px);
+    max-width: min(76vw, 280px);
+    width: calc(11ch + 36px);
   }
 
   p {
