@@ -50,6 +50,38 @@ h1 {
   margin: 0;
 }
 
+.header-title {
+  min-width: 0;
+}
+
+.sr-only {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.header-date-control {
+  display: block;
+  margin: 0;
+  min-width: 0;
+}
+
+.header-date-control select {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  min-height: 0;
+  max-width: min(60vw, 240px);
+  padding: 0 30px 0 0;
+}
+
 p {
   color: var(--muted);
   font-size: 13px;
@@ -204,6 +236,31 @@ body.has-install-hint main {
 }
 
 .key-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.clear-confirm {
+  align-items: center;
+  background: #1f2937;
+  border: 1px solid #7f1d1d;
+  border-radius: 8px;
+  display: flex;
+  flex: 1 0 100%;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 10px;
+}
+
+.clear-confirm span {
+  color: #fecaca;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.clear-confirm-actions {
   display: flex;
   flex: 0 0 auto;
   gap: 8px;
@@ -374,6 +431,11 @@ td.number {
     font-size: 30px;
   }
 
+  .header-date-control select {
+    font-size: 30px;
+    max-width: min(58vw, 220px);
+  }
+
   p {
     font-size: 12px;
     line-height: 1.35;
@@ -387,6 +449,16 @@ td.number {
   .key-actions {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .clear-confirm {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .clear-confirm-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 
   .icon-button {
@@ -573,6 +645,12 @@ td.number {
   body[data-layout="metric_bars"] select,
   body[data-layout="grouped_cards"] select {
     font-size: 22px;
+  }
+
+  body[data-layout="primary_cards"] .header-date-control select,
+  body[data-layout="metric_bars"] .header-date-control select,
+  body[data-layout="grouped_cards"] .header-date-control select {
+    font-size: 30px;
   }
 
   body[data-layout="primary_cards"] .primary-control,

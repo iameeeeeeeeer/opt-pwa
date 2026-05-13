@@ -14,6 +14,7 @@ let layoutConfig = null;
 let viewList = [];
 let viewMap = new Map();
 let devicePanelOpen = false;
+let clearConfirmOpen = false;
 
 const state = {
   view: "",
@@ -75,6 +76,9 @@ const elements = {
   createKeyButton: document.getElementById("createKeyButton"),
   showRegistrationButton: document.getElementById("showRegistrationButton"),
   clearKeyButton: document.getElementById("clearKeyButton"),
+  clearConfirm: document.getElementById("clearConfirm"),
+  confirmClearKeyButton: document.getElementById("confirmClearKeyButton"),
+  cancelClearKeyButton: document.getElementById("cancelClearKeyButton"),
   registrationCode: document.getElementById("registrationCode"),
   rowCount: document.getElementById("rowCount"),
   sourceDate: document.getElementById("sourceDate"),
@@ -82,9 +86,12 @@ const elements = {
   mobilePrimaryDetail: document.getElementById("mobilePrimaryDetail"),
   mobileGroupedDetail: document.getElementById("mobileGroupedDetail"),
   chart: document.getElementById("chart"),
-  table: document.getElementById("dataTable")
+  table: document.getElementById("dataTable"),
+  headerDateControl: document.getElementById("headerDateControl"),
+  headerDateSelect: document.getElementById("headerDateSelect")
 };
 
+elements.headerDateSelect?.addEventListener("change", () => loadView(elements.headerDateSelect.value));
 elements.refreshButton.addEventListener("click", () => {
   clearPayloadCache();
   layoutConfig = null;
@@ -140,19 +147,29 @@ elements.columnSelect.addEventListener("change", () => {
 });
 elements.createKeyButton?.addEventListener("click", async () => {
   devicePanelOpen = true;
+  setClearConfirmOpen(false);
   await showRegistrationCode(await createDeviceRegistrationCode());
   await syncKeyPanel();
 });
 elements.showRegistrationButton?.addEventListener("click", async () => {
+  setClearConfirmOpen(false);
   const code = await getDeviceRegistrationCode();
   if (code) await showRegistrationCode(code);
 });
 elements.clearKeyButton?.addEventListener("click", async () => {
-  const confirmed = window.confirm("重設後此裝置會失去解密金鑰，必須重新註冊。確定要重設嗎？");
-  if (!confirmed) return;
+  devicePanelOpen = true;
+  setClearConfirmOpen(true);
+  await syncKeyPanel();
+});
+elements.cancelClearKeyButton?.addEventListener("click", async () => {
+  setClearConfirmOpen(false);
+  await syncKeyPanel();
+});
+elements.confirmClearKeyButton?.addEventListener("click", async () => {
   clearPayloadCache();
   devicePanelOpen = true;
   await clearDeviceKey();
+  setClearConfirmOpen(false);
   await syncKeyPanel();
   elements.registrationCode.hidden = true;
   elements.registrationCode.value = "";
@@ -273,14 +290,19 @@ function syncDateSelect(payload, selectedValue, view) {
     options.push({ value: "latest", label: "最新日期" });
   }
   dates.slice(0, 40).forEach(date => options.push({ value: date, label: date }));
-  elements.dateSelect.innerHTML = options
+  const optionHtml = options
     .map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
     .join("");
   const exactDateValue = payload.d || selectedDates[0] || dates[0] || selectedValue;
   const value = exactDatesOnly
     ? (dates.includes(selectedValue) ? selectedValue : exactDateValue)
     : (selectedValue === view.default_date && selectedDates.length <= 1 ? "latest" : selectedValue);
-  elements.dateSelect.value = options.some(option => option.value === value) ? value : options[0]?.value || "";
+  const normalizedValue = options.some(option => option.value === value) ? value : options[0]?.value || "";
+  [elements.dateSelect, elements.headerDateSelect].forEach(select => {
+    if (!select) return;
+    select.innerHTML = optionHtml;
+    select.value = normalizedValue;
+  });
 }
 
 function syncPrimarySelect(view) {
@@ -482,7 +504,8 @@ function syncViewControls() {
   if (!view) return;
   document.body.dataset.view = view.id;
   document.body.dataset.layout = compact ? view.mobile_layout || "compact" : "full";
-  setHidden(elements.dateControl, compact && view.hide_date_compact);
+  setHidden(elements.dateControl, compact);
+  setHidden(elements.headerDateControl, !compact);
   setHidden(elements.primaryControl, !view.primary_filter);
   setHidden(elements.secondaryControlA, !view.secondary_filters?.[0]);
   setHidden(elements.secondaryControlB, !view.secondary_filters?.[1]);
@@ -501,11 +524,14 @@ function syncHeader(payload = state.payload) {
   const view = getViewConfig();
   const compact = isCompactLayout();
   if (compact && view) {
-    elements.appTitle.textContent = formatDateForTitle(payload?.d);
+    elements.appTitle.hidden = true;
+    setHidden(elements.headerDateControl, false);
     const filterText = activeFilterLabels(view).join(" / ");
     elements.statusLine.textContent = filterText ? `${view.label} / ${filterText}` : view.label;
     elements.refreshButton.textContent = "更新";
   } else {
+    elements.appTitle.hidden = false;
+    setHidden(elements.headerDateControl, true);
     elements.appTitle.textContent = layoutConfig?.app_title || "Mobile Viewer";
     elements.statusLine.textContent = state.statusText || elements.statusLine.textContent;
     elements.refreshButton.textContent = "Refresh";
@@ -678,7 +704,7 @@ async function syncKeyPanel(errorMessage = "") {
   const endpoint = window.OptionPwaConfig?.encryptedDataEndpoint || "";
   const endpointReady = endpoint && !endpoint.includes("REPLACE_WITH");
   const hasVisibleCode = Boolean(elements.registrationCode?.value);
-  const shouldShowPanel = !device.hasKey || devicePanelOpen || Boolean(errorMessage) || hasVisibleCode;
+  const shouldShowPanel = !device.hasKey || devicePanelOpen || Boolean(errorMessage) || hasVisibleCode || clearConfirmOpen;
   elements.keyPanel.hidden = !shouldShowPanel;
   if (elements.deviceButton) {
     elements.deviceButton.hidden = !device.hasKey;
@@ -687,6 +713,7 @@ async function syncKeyPanel(errorMessage = "") {
   elements.createKeyButton.hidden = device.hasKey;
   elements.showRegistrationButton.hidden = !device.hasKey;
   elements.clearKeyButton.hidden = !device.hasKey;
+  setClearConfirmOpen(clearConfirmOpen && device.hasKey);
   elements.keyPanelTitle.textContent = device.hasKey ? "裝置已建立" : "裝置尚未建立";
   if (!endpointReady) {
     elements.keyPanelStatus.textContent = "尚未設定資料來源";
@@ -699,6 +726,16 @@ async function syncKeyPanel(errorMessage = "") {
   elements.keyPanelStatus.textContent = errorMessage
     ? errorMessage
     : `Device ${device.deviceId.slice(0, 8)} / ${device.createdAt.slice(0, 10)}`;
+}
+
+function setClearConfirmOpen(open) {
+  clearConfirmOpen = Boolean(open);
+  if (elements.clearConfirm) {
+    elements.clearConfirm.hidden = !clearConfirmOpen;
+  }
+  if (elements.clearKeyButton) {
+    elements.clearKeyButton.setAttribute("aria-expanded", String(clearConfirmOpen));
+  }
 }
 
 async function showRegistrationCode(code) {

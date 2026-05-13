@@ -22,8 +22,12 @@
 </head>
 <body>
   <header class="app-header">
-    <div>
+    <div class="header-title">
       <h1 id="appTitle">Mobile Viewer</h1>
+      <label id="headerDateControl" class="header-date-control" hidden>
+        <span class="sr-only">日期</span>
+        <select id="headerDateSelect" aria-label="日期"></select>
+      </label>
       <p id="statusLine">Loading</p>
     </div>
     <div class="header-actions">
@@ -48,7 +52,14 @@
     <div class="key-actions">
       <button id="createKeyButton" class="icon-button" type="button">建立裝置</button>
       <button id="showRegistrationButton" class="icon-button secondary" type="button">顯示註冊碼</button>
-      <button id="clearKeyButton" class="icon-button danger" type="button">重設</button>
+      <button id="clearKeyButton" class="icon-button danger" type="button">清除綁定</button>
+    </div>
+    <div id="clearConfirm" class="clear-confirm" hidden>
+      <span>清除後此裝置會失去解密金鑰，必須重新建立裝置並註冊。</span>
+      <div class="clear-confirm-actions">
+        <button id="confirmClearKeyButton" class="icon-button danger" type="button">確認清除</button>
+        <button id="cancelClearKeyButton" class="icon-button secondary" type="button">取消</button>
+      </div>
     </div>
     <textarea id="registrationCode" class="registration-code" readonly hidden></textarea>
   </section>
