@@ -56,6 +56,13 @@ p {
   margin: 6px 0 0;
 }
 
+.header-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
 .icon-button,
 .tab,
 select,
@@ -76,6 +83,11 @@ input {
 
 .icon-button.secondary {
   background: #111827;
+}
+
+.icon-button.subtle {
+  color: var(--muted);
+  padding-inline: 10px;
 }
 
 .tabs {
@@ -157,12 +169,12 @@ body.has-install-hint main {
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 10px;
   justify-content: space-between;
   padding:
-    10px
+    8px
     calc(22px + env(safe-area-inset-right))
-    10px
+    8px
     calc(22px + env(safe-area-inset-left));
 }
 
@@ -211,7 +223,8 @@ body.has-install-hint main {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
   line-height: 1.45;
-  min-height: 160px;
+  max-height: 170px;
+  min-height: 96px;
   padding: 10px;
   resize: vertical;
 }
@@ -351,6 +364,10 @@ td.number {
       calc(14px + env(safe-area-inset-right))
       10px
       calc(14px + env(safe-area-inset-left));
+  }
+
+  .header-actions {
+    gap: 6px;
   }
 
   h1 {

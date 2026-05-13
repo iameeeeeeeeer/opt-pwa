@@ -13,6 +13,7 @@ import {
 let layoutConfig = null;
 let viewList = [];
 let viewMap = new Map();
+let devicePanelOpen = false;
 
 const state = {
   view: "",
@@ -31,6 +32,7 @@ const elements = {
   appTitle: document.getElementById("appTitle"),
   statusLine: document.getElementById("statusLine"),
   refreshButton: document.getElementById("refreshButton"),
+  deviceButton: document.getElementById("deviceButton"),
   toolbar: document.querySelector(".toolbar"),
   tabs: document.querySelector(".tabs"),
   filterToggle: document.getElementById("filterToggle"),
@@ -91,6 +93,11 @@ elements.refreshButton.addEventListener("click", () => {
   loadApp();
 });
 
+elements.deviceButton?.addEventListener("click", async () => {
+  devicePanelOpen = !devicePanelOpen;
+  await syncKeyPanel();
+});
+
 elements.filterToggle?.addEventListener("click", () => {
   const expanded = !elements.toolbar.classList.contains("is-expanded");
   elements.toolbar.classList.toggle("is-expanded", expanded);
@@ -132,6 +139,7 @@ elements.columnSelect.addEventListener("change", () => {
   render();
 });
 elements.createKeyButton?.addEventListener("click", async () => {
+  devicePanelOpen = true;
   await showRegistrationCode(await createDeviceRegistrationCode());
   await syncKeyPanel();
 });
@@ -140,6 +148,10 @@ elements.showRegistrationButton?.addEventListener("click", async () => {
   if (code) await showRegistrationCode(code);
 });
 elements.clearKeyButton?.addEventListener("click", async () => {
+  const confirmed = window.confirm("重設後此裝置會失去解密金鑰，必須重新註冊。確定要重設嗎？");
+  if (!confirmed) return;
+  clearPayloadCache();
+  devicePanelOpen = true;
   await clearDeviceKey();
   await syncKeyPanel();
   elements.registrationCode.hidden = true;
@@ -665,6 +677,13 @@ async function syncKeyPanel(errorMessage = "") {
   const device = await getDeviceState();
   const endpoint = window.OptionPwaConfig?.encryptedDataEndpoint || "";
   const endpointReady = endpoint && !endpoint.includes("REPLACE_WITH");
+  const hasVisibleCode = Boolean(elements.registrationCode?.value);
+  const shouldShowPanel = !device.hasKey || devicePanelOpen || Boolean(errorMessage) || hasVisibleCode;
+  elements.keyPanel.hidden = !shouldShowPanel;
+  if (elements.deviceButton) {
+    elements.deviceButton.hidden = !device.hasKey;
+    elements.deviceButton.setAttribute("aria-expanded", String(shouldShowPanel));
+  }
   elements.createKeyButton.hidden = device.hasKey;
   elements.showRegistrationButton.hidden = !device.hasKey;
   elements.clearKeyButton.hidden = !device.hasKey;
