@@ -1,4 +1,4 @@
-const CACHE_VERSION = "static-viewer-v30";
+const CACHE_VERSION = "static-viewer-v31";
 const SHELL_PATHS = [
   "./",
   "config.js",
@@ -36,11 +36,17 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) {
+  if (url.origin !== self.location.origin || event.request.method !== "GET") {
     return;
   }
 
   event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request))
+    fetch(event.request)
+      .then(response => {
+        const copy = response.clone();
+        caches.open(CACHE_VERSION).then(cache => cache.put(event.request, copy));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

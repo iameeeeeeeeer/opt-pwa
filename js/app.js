@@ -147,7 +147,10 @@ elements.clearKeyButton?.addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register(new URL("../sw.js", import.meta.url)).catch(() => {});
+  navigator.serviceWorker
+    .register(new URL("../sw.js", import.meta.url), { updateViaCache: "none" })
+    .then(registration => registration.update())
+    .catch(() => {});
 }
 
 initInstallHint();
