@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="選權分析">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <title>台灣選擇權分析</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" sizes="120x120" href="icons/apple-touch-icon-120.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon-152.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="icons/apple-touch-icon-167.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="vendor/echarts.min.js"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1 id="appTitle">台灣選擇權分析</h1>
+      <p id="statusLine">同步中</p>
+    </div>
+    <button id="refreshButton" class="icon-button" type="button" title="重新整理">Refresh</button>
+  </header>
+
+  <section id="installHint" class="install-hint" hidden>
+    <div>
+      <strong>加入 iPhone 主畫面</strong>
+      <span>在 Safari 按分享，選「加入主畫面」，之後就能像 App 一樣開啟。</span>
+    </div>
+    <button id="installHintClose" class="icon-button" type="button" title="關閉安裝提示">Close</button>
+  </section>
+
+  <section id="keyPanel" class="key-panel" aria-label="手機解密金鑰">
+    <div>
+      <strong id="keyPanelTitle">手機金鑰</strong>
+      <span id="keyPanelStatus">檢查中</span>
+    </div>
+    <div class="key-actions">
+      <button id="createKeyButton" class="icon-button" type="button">建立金鑰</button>
+      <button id="showRegistrationButton" class="icon-button secondary" type="button">顯示註冊碼</button>
+      <button id="clearKeyButton" class="icon-button danger" type="button">重設</button>
+    </div>
+    <textarea id="registrationCode" class="registration-code" readonly hidden></textarea>
+  </section>
+
+  <nav class="tabs" aria-label="資料類型">
+    <button class="tab is-active" data-view="pcratio" type="button">PC Ratio</button>
+    <button class="tab" data-view="largetrader" type="button">Large Trader</button>
+    <button class="tab" data-view="homework" type="button">Homework</button>
+  </nav>
+
+  <main>
+    <section class="toolbar" aria-label="篩選">
+      <label class="date-control">
+        日期
+        <select id="dateSelect"></select>
+      </label>
+      <label id="expiryControl" class="expiry-control" hidden>
+        到期月份/週別
+        <select id="expirySelect"></select>
+      </label>
+      <label id="identityControl" class="identity-control" hidden>
+        身份別
+        <select id="identitySelect"></select>
+      </label>
+      <label id="optionTypeControl" class="option-type-control" hidden>
+        權別
+        <select id="optionTypeSelect"></select>
+      </label>
+      <label id="homeworkExpiryControl" class="homework-expiry-control" hidden>
+        到期月份
+        <select id="homeworkExpirySelect"></select>
+      </label>
+      <label id="sideControl" class="side-control" hidden>
+        C/P
+        <select id="sideSelect"></select>
+      </label>
+      <label id="metricControl" class="metric-control" hidden>
+        圖形指標
+        <select id="metricSelect"></select>
+      </label>
+      <label id="thresholdControl" class="threshold-control" hidden>
+        顯示門檻
+        <select id="thresholdSelect"></select>
+      </label>
+      <button id="filterToggle" class="filter-toggle" type="button" aria-expanded="false" aria-controls="secondaryControls">篩選</button>
+      <div id="secondaryControls" class="secondary-controls">
+        <label id="columnControl" class="column-control">
+          欄位
+          <select id="columnSelect" multiple></select>
+        </label>
+        <label>
+          搜尋
+          <input id="searchInput" type="search" autocomplete="off">
+        </label>
+      </div>
+    </section>
+
+    <section id="offlineBanner" class="banner" hidden>目前離線或 API 暫時無法回應。</section>
+
+    <section class="metrics" aria-label="摘要">
+      <div><span id="rowCount">0</span><small>rows</small></div>
+      <div><span id="sourceDate">-</span><small>date</small></div>
+      <div><span id="sourceName">-</span><small>source</small></div>
+    </section>
+
+    <section id="mobilePcRatioDetail" class="mobile-pcratio-detail" hidden></section>
+    <section id="mobileLargeTraderDetail" class="mobile-largetrader-detail" hidden></section>
+
+    <section class="chart-shell">
+      <div id="chart" class="chart"></div>
+    </section>
+
+    <section class="table-shell">
+      <table id="dataTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,640 @@
+:root {
+  color-scheme: dark;
+  --bg: #0f172a;
+  --panel: #172033;
+  --panel-2: #101827;
+  --text: #e5edf8;
+  --muted: #94a3b8;
+  --border: #334155;
+  --blue: #38bdf8;
+  --green: #22c55e;
+  --yellow: #facc15;
+  --red: #fb7185;
+}
+
+html {
+  background: var(--bg);
+  min-height: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", sans-serif;
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+.app-header {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  padding:
+    calc(18px + env(safe-area-inset-top))
+    calc(22px + env(safe-area-inset-right))
+    14px
+    calc(22px + env(safe-area-inset-left));
+}
+
+h1 {
+  font-size: 24px;
+  letter-spacing: 0;
+  line-height: 1.2;
+  margin: 0;
+}
+
+p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+
+.icon-button,
+.tab,
+select,
+input {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font: inherit;
+}
+
+.icon-button {
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 9px 12px;
+  text-decoration: none;
+}
+
+.icon-button.secondary {
+  background: #111827;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding:
+    12px
+    calc(22px + env(safe-area-inset-right))
+    12px
+    calc(22px + env(safe-area-inset-left));
+}
+
+.tab {
+  border-radius: 6px;
+  cursor: pointer;
+  min-width: 118px;
+  padding: 10px 14px;
+}
+
+.tab.is-active {
+  background: #0e7490;
+  border-color: var(--blue);
+}
+
+main {
+  padding:
+    0
+    calc(22px + env(safe-area-inset-right))
+    calc(28px + env(safe-area-inset-bottom))
+    calc(22px + env(safe-area-inset-left));
+}
+
+body.has-install-hint main {
+  padding-bottom: calc(120px + env(safe-area-inset-bottom));
+}
+
+.install-hint {
+  align-items: center;
+  background: #082f49;
+  border: 1px solid #0ea5e9;
+  border-radius: 8px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  box-shadow: 0 18px 50px rgb(0 0 0 / 35%);
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  left: calc(14px + env(safe-area-inset-left));
+  padding: 12px;
+  position: fixed;
+  right: calc(14px + env(safe-area-inset-right));
+  z-index: 10;
+}
+
+.install-hint[hidden] {
+  display: none;
+}
+
+.install-hint strong,
+.install-hint span {
+  display: block;
+}
+
+.install-hint strong {
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.install-hint span {
+  color: #bae6fd;
+  font-size: 12px;
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+.key-panel {
+  align-items: center;
+  background: #111827;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: space-between;
+  padding:
+    10px
+    calc(22px + env(safe-area-inset-right))
+    10px
+    calc(22px + env(safe-area-inset-left));
+}
+
+.key-panel[hidden] {
+  display: none;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.key-panel strong,
+.key-panel span {
+  display: block;
+}
+
+.key-panel strong {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.key-panel span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  margin-top: 2px;
+}
+
+.key-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.icon-button.danger {
+  border-color: #7f1d1d;
+  color: #fecaca;
+}
+
+.registration-code {
+  background: #020617;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  flex: 1 0 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  min-height: 160px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.toolbar {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 180px 220px minmax(240px, 1fr);
+  margin: 8px 0 14px;
+}
+
+.filter-toggle {
+  display: none;
+}
+
+.secondary-controls {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, 280px);
+}
+
+label {
+  color: var(--muted);
+  display: grid;
+  font-size: 12px;
+  gap: 6px;
+}
+
+select,
+input {
+  border-radius: 6px;
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+select[multiple] {
+  height: 72px;
+}
+
+.banner {
+  background: #451a03;
+  border: 1px solid #b45309;
+  border-radius: 6px;
+  color: #fed7aa;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+}
+
+.metrics {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.metrics > div {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 13px 14px;
+}
+
+.metrics span {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metrics small {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.chart-shell,
+.table-shell {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 14px;
+}
+
+.mobile-pcratio-detail,
+.mobile-largetrader-detail {
+  display: none;
+}
+
+.chart {
+  height: 360px;
+  width: 100%;
+}
+
+.table-shell {
+  max-height: calc(100vh - 560px);
+  min-height: 260px;
+  overflow: auto;
+}
+
+table {
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+}
+
+th,
+td {
+  border-bottom: 1px solid #1f2937;
+  padding: 9px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  background: #111827;
+  cursor: pointer;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+td.number {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+@media (max-width: 860px) {
+  .app-header {
+    align-items: center;
+    gap: 12px;
+    padding:
+      calc(12px + env(safe-area-inset-top))
+      calc(14px + env(safe-area-inset-right))
+      10px
+      calc(14px + env(safe-area-inset-left));
+  }
+
+  h1 {
+    font-size: 30px;
+  }
+
+  p {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .key-panel {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .key-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .icon-button {
+    display: inline-flex;
+    font-size: 20px;
+    justify-content: center;
+    min-height: 40px;
+    padding: 8px 10px;
+  }
+
+  select,
+  input {
+    font-size: 16px;
+  }
+
+  .tabs {
+    gap: 6px;
+    padding:
+      10px
+      calc(14px + env(safe-area-inset-right))
+      8px
+      calc(14px + env(safe-area-inset-left));
+  }
+
+  .tab {
+    flex: 1 0 0;
+    min-width: 0;
+    padding: 10px 8px;
+  }
+
+  main {
+    padding:
+      0
+      calc(14px + env(safe-area-inset-right))
+      calc(22px + env(safe-area-inset-bottom))
+      calc(14px + env(safe-area-inset-left));
+  }
+
+  .toolbar {
+    align-items: end;
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin: 6px 0 10px;
+  }
+
+  .date-control {
+    min-width: 0;
+  }
+
+  .expiry-control {
+    min-width: 0;
+  }
+
+  .identity-control,
+  .option-type-control,
+  .homework-expiry-control,
+  .side-control,
+  .metric-control,
+  .threshold-control {
+    min-width: 0;
+  }
+
+  .filter-toggle {
+    align-items: center;
+    align-self: end;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    cursor: pointer;
+    display: inline-flex;
+    font: inherit;
+    justify-content: center;
+    min-height: 40px;
+    padding: 8px 14px;
+  }
+
+  .secondary-controls {
+    display: none;
+    grid-column: 1 / -1;
+  }
+
+  .toolbar.is-expanded .secondary-controls {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  select[multiple] {
+    height: 132px;
+  }
+
+  .metrics {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .metrics > div {
+    flex: 0 0 auto;
+    max-width: 220px;
+    min-width: 104px;
+    padding: 9px 10px;
+  }
+
+  .metrics > div:nth-child(3) {
+    display: none;
+  }
+
+  .metrics span {
+    font-size: 17px;
+    line-height: 1.2;
+    max-width: 190px;
+  }
+
+  .metrics small {
+    font-size: 10px;
+  }
+
+  .chart {
+    height: 260px;
+  }
+
+  .table-shell {
+    max-height: none;
+  }
+
+  body[data-view="pcratio"] .chart-shell {
+    display: none;
+  }
+
+  body[data-view="pcratio"] .filter-toggle,
+  body[data-view="homework"] .filter-toggle,
+  body[data-view="largetrader"] .filter-toggle,
+  body[data-view="pcratio"] .secondary-controls,
+  body[data-view="homework"] .secondary-controls {
+    display: none !important;
+  }
+
+  body[data-view="homework"] .toolbar,
+  body[data-view="largetrader"] .toolbar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  body[data-view="homework"] .date-control,
+  body[data-view="homework"] .metric-control,
+  body[data-view="homework"] .threshold-control,
+  body[data-view="largetrader"] .date-control {
+    grid-column: 1 / -1;
+  }
+
+  body[data-view="pcratio"] .metrics,
+  body[data-view="homework"] .metrics,
+  body[data-view="homework"] .table-shell,
+  body[data-view="largetrader"] .metrics,
+  body[data-view="largetrader"] .chart-shell,
+  body[data-view="largetrader"] .table-shell,
+  body[data-view="pcratio"] .table-shell {
+    display: none;
+  }
+
+  body[data-view="pcratio"] .app-header,
+  body[data-view="homework"] .app-header,
+  body[data-view="largetrader"] .app-header {
+    padding-bottom: 14px;
+  }
+
+  body[data-view="pcratio"] #statusLine,
+  body[data-view="homework"] #statusLine,
+  body[data-view="largetrader"] #statusLine {
+    font-size: 18px;
+  }
+
+  body[data-view="pcratio"] .tabs,
+  body[data-view="homework"] .tabs,
+  body[data-view="largetrader"] .tabs {
+    padding-top: 12px;
+  }
+
+  body[data-view="pcratio"] .tab,
+  body[data-view="homework"] .tab,
+  body[data-view="largetrader"] .tab,
+  body[data-view="pcratio"] select,
+  body[data-view="homework"] select,
+  body[data-view="largetrader"] select {
+    font-size: 22px;
+  }
+
+  body[data-view="pcratio"] .expiry-control,
+  body[data-view="homework"] .homework-expiry-control,
+  body[data-view="homework"] .side-control,
+  body[data-view="homework"] .metric-control,
+  body[data-view="homework"] .threshold-control,
+  body[data-view="largetrader"] .identity-control,
+  body[data-view="largetrader"] .option-type-control {
+    color: var(--muted);
+    font-size: 17px;
+  }
+
+  body[data-view="pcratio"] .mobile-pcratio-detail:not([hidden]) {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-bottom: 16px;
+  }
+
+  body[data-view="largetrader"] .mobile-largetrader-detail:not([hidden]) {
+    display: grid;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .mobile-group {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 10px;
+  }
+
+  .mobile-stat {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: grid;
+    gap: 7px;
+    min-height: 102px;
+    padding: 13px 14px;
+  }
+
+  .mobile-stat.wide {
+    grid-column: 1 / -1;
+  }
+
+  .mobile-stat.highlight {
+    background: #0f2a36;
+    border-color: #0ea5e9;
+  }
+
+  .mobile-stat span {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.25;
+  }
+
+  .mobile-stat strong {
+    align-self: end;
+    color: var(--text);
+    font-size: clamp(26px, 8vw, 42px);
+    line-height: 1.08;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-stat.wide strong {
+    font-size: clamp(30px, 10vw, 48px);
+    overflow-wrap: normal;
+  }
+
+  table {
+    font-size: 12px;
+  }
+
+  th,
+  td {
+    padding: 8px 9px;
+  }
+}
