@@ -30,12 +30,28 @@ function lineByGroupOption(viewConfig, rows, compact, metric) {
     : chartConfig.value_format || "";
   const limit = compact ? chartConfig.compact_series_limit : chartConfig.series_limit;
   const groups = [...new Set(rows.map(row => row[groupField]).filter(Boolean))].slice(0, limit || 12);
+  const dataZoom = chartConfig.data_zoom === true
+    ? [
+        { type: "inside", xAxisIndex: 0, filterMode: "filter" },
+        {
+          type: "slider",
+          xAxisIndex: 0,
+          filterMode: "filter",
+          height: compact ? 16 : 18,
+          bottom: compact ? 8 : 10,
+          borderColor: "#334155",
+          fillerColor: "rgba(14, 165, 233, 0.18)",
+          handleStyle: { color: "#38bdf8" },
+          textStyle: { color: "#94a3b8" }
+        }
+      ]
+    : undefined;
   return {
     tooltip: { trigger: "axis", valueFormatter: value => formatAxisValue(value, valueFormat) },
     legend: compact ? { show: false } : { top: 8, textStyle: { color: "#cbd5e1" } },
     grid: compact
-      ? { left: 8, right: 16, top: 24, bottom: 36, containLabel: true }
-      : { left: 16, right: 24, top: 58, bottom: 42, containLabel: true },
+      ? { left: 8, right: 16, top: 24, bottom: dataZoom ? 64 : 36, containLabel: true }
+      : { left: 16, right: 24, top: 58, bottom: dataZoom ? 70 : 42, containLabel: true },
     xAxis: {
       type: "category",
       name: compact ? "" : chartConfig.x_axis_label || "",
@@ -47,6 +63,7 @@ function lineByGroupOption(viewConfig, rows, compact, metric) {
       nameTextStyle: { color: "#cbd5e1", padding: [0, 0, 0, 8] },
       axisLabel: { color: "#94a3b8", formatter: value => formatAxisValue(value, valueFormat), margin: 10 }
     },
+    dataZoom,
     series: groups.map(group => ({
       name: group,
       type: "line",
@@ -55,6 +72,7 @@ function lineByGroupOption(viewConfig, rows, compact, metric) {
       areaStyle: viewConfig.mobile_layout === "grouped_cards" ? { opacity: 0.12 } : undefined,
       data: rows
         .filter(row => row[groupField] === group)
+        .filter(row => hasChartValue(row[xField]) && hasChartValue(row[yField]))
         .sort((a, b) => String(a[xField]).localeCompare(String(b[xField]), "zh-Hant", { numeric: true }))
         .map(row => [row[xField], row[yField]])
     }))
@@ -120,6 +138,10 @@ function formatAxisValue(value, format) {
 
 function trimNumber(value, digits) {
   return Number(value.toFixed(digits)).toLocaleString(undefined, { maximumFractionDigits: digits });
+}
+
+function hasChartValue(value) {
+  return value !== null && value !== undefined && value !== "";
 }
 
 function optionByValue(options = [], value) {

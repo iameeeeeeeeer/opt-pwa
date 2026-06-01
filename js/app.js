@@ -670,6 +670,7 @@ function render() {
 }
 
 function applyViewFilters(view, rows) {
+  rows = applyRequiredFieldFilters(rows, view.required_fields);
   if (view.primary_filter?.sort_field && isCompactLayout()) {
     rows.sort((a, b) => Number(b[view.primary_filter.sort_field] || 0) - Number(a[view.primary_filter.sort_field] || 0));
   }
@@ -683,6 +684,11 @@ function applyViewFilters(view, rows) {
     rows = applyThreshold(rows, view.threshold_filter);
   }
   return rows;
+}
+
+function applyRequiredFieldFilters(rows, fields = []) {
+  if (!fields.length) return rows;
+  return rows.filter(row => fields.every(field => row[field] !== null && row[field] !== undefined && row[field] !== ""));
 }
 
 function applyFieldFilter(rows, field, allValue) {
