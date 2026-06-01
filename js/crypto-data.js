@@ -16,6 +16,58 @@ export async function getDeviceState() {
   };
 }
 
+export async function getConnectionDiagnostics(lastError = "") {
+  const record = await getDeviceRecord();
+  const config = getConfig();
+  const diagnostics = {
+    v: "option-pwa-diagnostics-v1",
+    t: new Date().toISOString(),
+    href: window.location.href,
+    origin: window.location.origin,
+    standalone: window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches,
+    supports: {
+      indexedDB: "indexedDB" in window,
+      cryptoSubtle: Boolean(window.crypto?.subtle),
+      decompressionStream: "DecompressionStream" in window,
+      serviceWorker: "serviceWorker" in navigator
+    },
+    device: {
+      hasKey: Boolean(record?.privateKey),
+      deviceId: record?.deviceId || "",
+      label: record?.label || "",
+      createdAt: record?.createdAt || ""
+    },
+    endpoint: {
+      configured: Boolean(config.encryptedDataEndpoint),
+      host: endpointHost(config.encryptedDataEndpoint || "")
+    },
+    envelope: {
+      reachable: false,
+      version: "",
+      updatedAt: "",
+      recipients: 0,
+      hasCurrentDevice: false,
+      error: ""
+    },
+    lastError: lastError || ""
+  };
+
+  if (config.encryptedDataEndpoint && !config.encryptedDataEndpoint.includes("REPLACE_WITH")) {
+    try {
+      const envelope = await loadEnvelopeJsonp(config.encryptedDataEndpoint);
+      diagnostics.envelope.reachable = true;
+      diagnostics.envelope.version = envelope.v || "";
+      diagnostics.envelope.updatedAt = envelope.m?.u || "";
+      diagnostics.envelope.recipients = Array.isArray(envelope.r) ? envelope.r.length : 0;
+      diagnostics.envelope.hasCurrentDevice = Boolean(record?.deviceId && envelope.r?.some(item => item.i === record.deviceId));
+    } catch (error) {
+      diagnostics.envelope.error = error.message || String(error);
+    }
+  }
+
+  return diagnostics;
+}
+
 export async function createDeviceRegistrationCode() {
   const config = getConfig();
   const deviceId = crypto.randomUUID();
@@ -151,6 +203,14 @@ async function loadDecryptedPayloadOnce() {
 
 function getConfig() {
   return window.OptionPwaConfig || {};
+}
+
+function endpointHost(endpoint) {
+  try {
+    return new URL(endpoint).host;
+  } catch {
+    return "";
+  }
 }
 
 function loadEnvelopeJsonp(endpoint) {

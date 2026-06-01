@@ -288,6 +288,7 @@ body.has-install-hint main {
   min-height: 96px;
   padding: 10px;
   resize: vertical;
+  word-break: break-all;
 }
 
 .toolbar {

@@ -3,6 +3,7 @@ import {
   clearDeviceKey,
   clearPayloadCache,
   createDeviceRegistrationCode,
+  getConnectionDiagnostics,
   getDeviceRegistrationCode,
   getDeviceState,
   getStatusPayload,
@@ -37,7 +38,8 @@ const state = {
   selectedThreshold: "",
   sortKey: null,
   sortDir: "asc",
-  statusText: ""
+  statusText: "",
+  lastError: ""
 };
 
 const elements = {
@@ -86,6 +88,7 @@ const elements = {
   keyPanelStatus: document.getElementById("keyPanelStatus"),
   createKeyButton: document.getElementById("createKeyButton"),
   showRegistrationButton: document.getElementById("showRegistrationButton"),
+  diagnosticsButton: document.getElementById("diagnosticsButton"),
   pushRegistrationButton: document.getElementById("pushRegistrationButton"),
   clearKeyButton: document.getElementById("clearKeyButton"),
   clearConfirm: document.getElementById("clearConfirm"),
@@ -168,6 +171,12 @@ elements.showRegistrationButton?.addEventListener("click", async () => {
   const code = await getDeviceRegistrationCode();
   if (code) await showRegistrationCode(code);
 });
+elements.diagnosticsButton?.addEventListener("click", async () => {
+  devicePanelOpen = true;
+  setClearConfirmOpen(false);
+  const diagnostics = await getConnectionDiagnostics(state.lastError || "");
+  await showRegistrationCode(JSON.stringify(diagnostics, null, 2), "診斷資訊已顯示");
+});
 elements.pushRegistrationButton?.addEventListener("click", async () => {
   devicePanelOpen = true;
   setClearConfirmOpen(false);
@@ -210,11 +219,13 @@ loadApp();
 
 async function loadApp() {
   elements.offlineBanner.hidden = true;
+  state.lastError = "";
   try {
     await loadLayoutConfig();
     await loadStatus();
     await loadView();
   } catch (error) {
+    state.lastError = error.message || String(error);
     elements.offlineBanner.hidden = false;
     elements.statusLine.textContent = error.message;
     await syncKeyPanel(error.message);
@@ -258,6 +269,7 @@ async function loadView(dateOverride) {
   elements.offlineBanner.hidden = true;
   try {
     const payload = await getViewPayload(view.id, date);
+    state.lastError = "";
     state.payload = payload;
     state.rows = payload.r || [];
     syncDateSelect(payload, date, view);
@@ -272,6 +284,7 @@ async function loadView(dateOverride) {
     syncColumnSelect(effectiveView);
     render();
   } catch (error) {
+    state.lastError = error.message || String(error);
     elements.offlineBanner.hidden = false;
     elements.statusLine.textContent = `資料錯誤: ${error.message}`;
     await syncKeyPanel(error.message);
@@ -948,6 +961,9 @@ async function syncKeyPanel(errorMessage = "") {
   }
   elements.createKeyButton.hidden = device.hasKey;
   elements.showRegistrationButton.hidden = !device.hasKey;
+  if (elements.diagnosticsButton) {
+    elements.diagnosticsButton.hidden = false;
+  }
   if (elements.pushRegistrationButton) {
     elements.pushRegistrationButton.hidden = !device.hasKey || !isPushSupported();
   }
@@ -963,8 +979,22 @@ async function syncKeyPanel(errorMessage = "") {
     return;
   }
   elements.keyPanelStatus.textContent = errorMessage
-    ? errorMessage
+    ? friendlyDeviceError(errorMessage, device)
     : `Device ${device.deviceId.slice(0, 8)} / ${device.createdAt.slice(0, 10)}`;
+}
+
+function friendlyDeviceError(errorMessage, device) {
+  if (errorMessage.includes("尚未建立解密金鑰")) {
+    return `此網址尚未建立裝置。目前 origin：${window.location.origin}`;
+  }
+  if (errorMessage.includes("尚未授權") || errorMessage.includes("金鑰已失效")) {
+    const id = device.deviceId ? device.deviceId.slice(0, 8) : "-";
+    return `此裝置尚未授權。Device ${id}，請按「顯示註冊碼」後加入遠端。`;
+  }
+  if (errorMessage.includes("資料封包讀取逾時") || errorMessage.includes("無法載入資料封包")) {
+    return "資料來源無法載入。請確認可連網，或按「診斷」複製狀態。";
+  }
+  return errorMessage;
 }
 
 function setClearConfirmOpen(open) {
@@ -977,7 +1007,7 @@ function setClearConfirmOpen(open) {
   }
 }
 
-async function showRegistrationCode(code) {
+async function showRegistrationCode(code, statusText = "註冊碼已顯示") {
   if (!elements.registrationCode) return;
   elements.registrationCode.value = code;
   elements.registrationCode.hidden = false;
@@ -985,8 +1015,8 @@ async function showRegistrationCode(code) {
   elements.registrationCode.select();
   try {
     await navigator.clipboard.writeText(code);
-    elements.keyPanelStatus.textContent = "註冊碼已複製";
+    elements.keyPanelStatus.textContent = statusText.replace("已顯示", "已複製");
   } catch {
-    elements.keyPanelStatus.textContent = "註冊碼已顯示";
+    elements.keyPanelStatus.textContent = statusText;
   }
 }
