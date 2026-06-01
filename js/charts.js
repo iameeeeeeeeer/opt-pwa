@@ -50,8 +50,8 @@ function lineByGroupOption(viewConfig, rows, compact, metric) {
     series: groups.map(group => ({
       name: group,
       type: "line",
-      smooth: true,
-      showSymbol: false,
+      smooth: chartConfig.smooth === true,
+      showSymbol: chartConfig.show_symbol === true,
       areaStyle: viewConfig.mobile_layout === "grouped_cards" ? { opacity: 0.12 } : undefined,
       data: rows
         .filter(row => row[groupField] === group)
