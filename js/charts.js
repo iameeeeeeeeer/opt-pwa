@@ -10,7 +10,7 @@ export function renderChart(container, viewConfig, rows, options = {}) {
   const chart = window.echarts.getInstanceByDom(container) || window.echarts.init(container, "dark");
   const option = viewConfig.chart.type === "bar_by_category"
     ? barByCategoryOption(viewConfig, rows, compact, options.metric)
-    : lineByGroupOption(viewConfig, rows, compact);
+    : lineByGroupOption(viewConfig, rows, compact, options.metric);
   chart.setOption(option, true);
   chart.resize();
   if (!container.dataset.resizeObserverAttached) {
@@ -19,19 +19,34 @@ export function renderChart(container, viewConfig, rows, options = {}) {
   }
 }
 
-function lineByGroupOption(viewConfig, rows, compact) {
+function lineByGroupOption(viewConfig, rows, compact, metric) {
   const chartConfig = viewConfig.chart;
+  const metricConfig = optionByValue(viewConfig.metric_filter?.options, metric) || viewConfig.metric_filter?.options?.[0] || {};
   const groupField = chartConfig.group_field;
   const xField = chartConfig.x_field;
-  const yField = chartConfig.y_field;
+  const yField = chartConfig.y_field === "$metric" ? metricConfig.value : chartConfig.y_field;
+  const valueFormat = chartConfig.y_field === "$metric"
+    ? metricConfig.value_format || chartConfig.value_format || ""
+    : chartConfig.value_format || "";
   const limit = compact ? chartConfig.compact_series_limit : chartConfig.series_limit;
   const groups = [...new Set(rows.map(row => row[groupField]).filter(Boolean))].slice(0, limit || 12);
   return {
-    tooltip: { trigger: "axis" },
+    tooltip: { trigger: "axis", valueFormatter: value => formatAxisValue(value, valueFormat) },
     legend: compact ? { show: false } : { top: 8, textStyle: { color: "#cbd5e1" } },
-    grid: compact ? { left: 46, right: 14, top: 22, bottom: 32 } : { left: 56, right: 24, top: 56, bottom: 38 },
-    xAxis: { type: "category", axisLabel: { color: "#94a3b8" } },
-    yAxis: { type: "value", name: compact ? "" : chartConfig.y_axis_label || "", axisLabel: { color: "#94a3b8" } },
+    grid: compact
+      ? { left: 8, right: 16, top: 24, bottom: 36, containLabel: true }
+      : { left: 16, right: 24, top: 58, bottom: 42, containLabel: true },
+    xAxis: {
+      type: "category",
+      name: compact ? "" : chartConfig.x_axis_label || "",
+      axisLabel: { color: "#94a3b8", hideOverlap: true, margin: 10 }
+    },
+    yAxis: {
+      type: "value",
+      name: compact ? "" : metricConfig.label || chartConfig.y_axis_label || "",
+      nameTextStyle: { color: "#cbd5e1", padding: [0, 0, 0, 8] },
+      axisLabel: { color: "#94a3b8", formatter: value => formatAxisValue(value, valueFormat), margin: 10 }
+    },
     series: groups.map(group => ({
       name: group,
       type: "line",
@@ -40,7 +55,7 @@ function lineByGroupOption(viewConfig, rows, compact) {
       areaStyle: viewConfig.mobile_layout === "grouped_cards" ? { opacity: 0.12 } : undefined,
       data: rows
         .filter(row => row[groupField] === group)
-        .sort((a, b) => String(a[xField]).localeCompare(String(b[xField])))
+        .sort((a, b) => String(a[xField]).localeCompare(String(b[xField]), "zh-Hant", { numeric: true }))
         .map(row => [row[xField], row[yField]])
     }))
   };
@@ -50,6 +65,7 @@ function barByCategoryOption(viewConfig, rows, compact, metric) {
   const chartConfig = viewConfig.chart;
   const metricConfig = optionByValue(viewConfig.metric_filter?.options, metric) || viewConfig.metric_filter?.options?.[0] || {};
   const dataKey = metricConfig.value;
+  const valueFormat = metricConfig.value_format || chartConfig.value_format || "";
   const categoryField = chartConfig.category_field;
   const sortField = chartConfig.sort_field || categoryField;
   const choiceField = chartConfig.choice_field;
@@ -58,11 +74,15 @@ function barByCategoryOption(viewConfig, rows, compact, metric) {
     .sort((a, b) => Number(a[sortField] || 0) - Number(b[sortField] || 0));
   const choice = ranked[0]?.[choiceField];
   return {
-    tooltip: { trigger: "axis" },
+    tooltip: { trigger: "axis", valueFormatter: value => formatAxisValue(value, valueFormat) },
     grid: compact
-      ? { left: 70, right: 16, top: 18, bottom: 28, containLabel: true }
-      : { left: 88, right: 24, top: 28, bottom: 28, containLabel: true },
-    xAxis: { type: "value", name: compact ? "" : metricConfig.label || "", axisLabel: { color: "#94a3b8" } },
+      ? { left: 72, right: 16, top: 18, bottom: 34, containLabel: true }
+      : { left: 88, right: 24, top: 28, bottom: 34, containLabel: true },
+    xAxis: {
+      type: "value",
+      name: compact ? "" : metricConfig.label || "",
+      axisLabel: { color: "#94a3b8", formatter: value => formatAxisValue(value, valueFormat), margin: 10 }
+    },
     yAxis: {
       type: "category",
       inverse: true,
@@ -82,6 +102,24 @@ function barByCategoryOption(viewConfig, rows, compact, metric) {
       }
     }]
   };
+}
+
+function formatAxisValue(value, format) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return value ?? "";
+  const sign = number < 0 ? "-" : "";
+  const abs = Math.abs(number);
+  if (format === "twd_compact") {
+    if (abs >= 100000000) return `${sign}${trimNumber(abs / 100000000, abs >= 1000000000 ? 1 : 2)}億`;
+    if (abs >= 10000) return `${sign}${trimNumber(abs / 10000, abs >= 1000000 ? 0 : 1)}萬`;
+  }
+  if (format === "twd_wan") return `${sign}${trimNumber(abs / 10000, abs >= 1000000 ? 0 : 1)}萬`;
+  if (format === "integer_compact" && abs >= 10000) return `${sign}${trimNumber(abs / 10000, 1)}萬`;
+  return number.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function trimNumber(value, digits) {
+  return Number(value.toFixed(digits)).toLocaleString(undefined, { maximumFractionDigits: digits });
 }
 
 function optionByValue(options = [], value) {

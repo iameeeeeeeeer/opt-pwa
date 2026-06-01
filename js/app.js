@@ -19,9 +19,16 @@ let viewList = [];
 let viewMap = new Map();
 let devicePanelOpen = false;
 let clearConfirmOpen = false;
+let sessionControl = null;
+let displayModeControl = null;
+let displayModeLabel = null;
+let displayModeGroup = null;
+let displayModeNote = null;
 
 const state = {
   view: "",
+  session: "day",
+  displayModes: {},
   payload: null,
   rows: [],
   selectedColumns: [],
@@ -221,6 +228,8 @@ async function loadLayoutConfig() {
   if (!state.view || !viewMap.has(state.view)) {
     state.view = layoutConfig.default_view || viewList[0]?.id || "";
   }
+  state.session = sessionForView(getViewConfig()) || state.session || firstSession();
+  syncSessionSwitch();
   syncTabs();
   syncStaticLabels();
 }
@@ -256,9 +265,11 @@ async function loadView(dateOverride) {
     syncSecondarySelects(view);
     syncTertiarySelect(view);
     syncChoiceSelect(view);
-    syncMetricSelect(view);
-    syncThresholdSelect(view);
-    syncColumnSelect(view);
+    syncDisplayModeSelect(view);
+    const effectiveView = effectiveViewConfig(view);
+    syncMetricSelect(effectiveView);
+    syncThresholdSelect(effectiveView);
+    syncColumnSelect(effectiveView);
     render();
   } catch (error) {
     elements.offlineBanner.hidden = false;
@@ -267,19 +278,224 @@ async function loadView(dateOverride) {
   }
 }
 
+function sessionForView(view) {
+  return view?.session || "day";
+}
+
+function firstSession() {
+  return sessionForView(viewList[0]) || "day";
+}
+
+function sessionLabel(session) {
+  const view = viewList.find(item => sessionForView(item) === session);
+  if (view?.session_label) return view.session_label;
+  return session === "night" ? "夜盤" : "日盤";
+}
+
+function sessionsForViews() {
+  const sessions = [];
+  viewList.forEach(view => {
+    const session = sessionForView(view);
+    if (!sessions.includes(session)) sessions.push(session);
+  });
+  return sessions;
+}
+
+function viewsForCurrentSession() {
+  const views = viewList.filter(view => sessionForView(view) === state.session);
+  return views.length ? views : viewList;
+}
+
+function resetViewState() {
+  state.sortKey = null;
+  state.selectedColumns = [];
+  state.filters = {};
+  state.selectedMetric = "";
+  state.selectedThreshold = "";
+}
+
+function displayModeOptions(view) {
+  const config = view?.display_modes;
+  return config?.options || [];
+}
+
+function displayModesAreStacked(view) {
+  return view?.display_modes?.layout === "stacked" && displayModeOptions(view).length > 1;
+}
+
+function defaultDisplayMode(view) {
+  const config = view?.display_modes;
+  const options = displayModeOptions(view);
+  if (!options.length) return null;
+  return options.find(option => option.value === config.default) || options[0];
+}
+
+function activeDisplayMode(view) {
+  const config = view?.display_modes;
+  const options = displayModeOptions(view);
+  if (!options.length) return null;
+  if (displayModesAreStacked(view)) return defaultDisplayMode(view);
+  const selected = state.displayModes[view.id] || config.default || options[0].value;
+  return options.find(option => option.value === selected) || options.find(option => option.value === config.default) || options[0];
+}
+
+function effectiveViewConfigForMode(view, mode) {
+  if (!mode) return view;
+  const effective = { ...view };
+  ["mobile_layout", "hide_table_compact", "hide_chart_compact", "hide_metrics_compact", "hide_date_compact", "fixed_compact_columns", "mobile_default_columns", "chart"].forEach(key => {
+    if (Object.prototype.hasOwnProperty.call(mode, key)) effective[key] = mode[key];
+  });
+  return effective;
+}
+
+function effectiveViewConfig(view) {
+  return effectiveViewConfigForMode(view, activeDisplayMode(view));
+}
+
+function ensureDisplayModeControl() {
+  if (displayModeControl) return;
+  displayModeControl = document.createElement("fieldset");
+  displayModeControl.className = "display-mode-control";
+  displayModeLabel = document.createElement("legend");
+  displayModeGroup = document.createElement("div");
+  displayModeGroup.className = "display-mode-radio-group";
+  displayModeGroup.setAttribute("role", "radiogroup");
+  displayModeNote = document.createElement("p");
+  displayModeNote.className = "display-mode-note display-mode-control-note";
+  displayModeGroup.addEventListener("change", event => {
+    if (!event.target.matches("input[type='radio'][data-display-mode]")) return;
+    const view = getViewConfig();
+    if (!view) return;
+    state.displayModes[view.id] = event.target.dataset.displayMode;
+    state.sortKey = null;
+    state.selectedColumns = [];
+    syncViewControls();
+    syncDisplayModeSelect(view);
+    const effectiveView = effectiveViewConfig(view);
+    syncMetricSelect(effectiveView);
+    syncThresholdSelect(effectiveView);
+    syncColumnSelect(effectiveView);
+    render();
+  });
+  displayModeControl.append(displayModeLabel, displayModeGroup, displayModeNote);
+  elements.metricControl?.parentNode?.insertBefore(displayModeControl, elements.metricControl);
+}
+
+function syncDisplayModeSelect(view) {
+  const config = view?.display_modes;
+  const options = displayModeOptions(view);
+  if (!options.length || displayModesAreStacked(view)) {
+    if (displayModeControl) displayModeControl.hidden = true;
+    return;
+  }
+  ensureDisplayModeControl();
+  displayModeControl.hidden = false;
+  displayModeLabel.textContent = config.label || "呈現方式";
+  const selected = options.some(option => option.value === state.displayModes[view.id])
+    ? state.displayModes[view.id]
+    : config.default || options[0].value;
+  state.displayModes[view.id] = selected;
+  displayModeGroup.innerHTML = options
+    .map(option => (
+      `<label class="display-mode-radio">
+        <input type="radio" name="display-mode-${escapeHtml(view.id)}" value="${escapeHtml(option.value)}" data-display-mode="${escapeHtml(option.value)}" ${option.value === selected ? "checked" : ""}>
+        <span>${escapeHtml(option.label)}</span>
+      </label>`
+    ))
+    .join("");
+  const selectedOption = options.find(option => option.value === selected);
+  displayModeNote.textContent = selectedOption?.description || "";
+  displayModeNote.hidden = !displayModeNote.textContent;
+}
+
+function renderViewCharts(container, view, effectiveView, rows, options = {}) {
+  if (!container) return;
+  if (!displayModesAreStacked(view)) {
+    resetStackedDisplayCharts(container);
+    renderChart(container, effectiveView, rows, options);
+    return;
+  }
+  const existingChart = window.echarts?.getInstanceByDom(container);
+  if (existingChart) existingChart.dispose();
+  container.classList.add("is-stacked-display");
+  container.innerHTML = displayModeOptions(view).map(mode => (
+    `<section class="display-mode-panel" data-display-mode-panel="${escapeHtml(mode.value)}">
+      <h2>${escapeHtml(mode.label)}</h2>
+      ${mode.description ? `<p class="display-mode-note">${escapeHtml(mode.description)}</p>` : ""}
+      <div class="display-mode-chart" data-display-mode-chart="${escapeHtml(mode.value)}"></div>
+    </section>`
+  )).join("");
+  const chartNodes = [...container.querySelectorAll(".display-mode-chart")];
+  displayModeOptions(view).forEach((mode, index) => {
+    const chartNode = chartNodes[index];
+    if (!chartNode) return;
+    const modeView = effectiveViewConfigForMode(view, mode);
+    chartNode.dataset.chartType = modeView.chart?.type || "";
+    renderChart(chartNode, modeView, rows, options);
+  });
+}
+
+function resetStackedDisplayCharts(container) {
+  if (!container.classList.contains("is-stacked-display")) return;
+  container.querySelectorAll(".display-mode-chart").forEach(node => {
+    const chart = window.echarts?.getInstanceByDom(node);
+    if (chart) chart.dispose();
+  });
+  container.classList.remove("is-stacked-display");
+  container.innerHTML = "";
+}
+
+function switchSession(session) {
+  const current = getViewConfig();
+  const group = current?.session_group;
+  const next = viewList.find(view => sessionForView(view) === session && view.session_group === group)
+    || viewList.find(view => sessionForView(view) === session)
+    || current;
+  state.session = session;
+  if (next) state.view = next.id;
+  resetViewState();
+  syncSessionSwitch();
+  syncTabs();
+  loadView();
+}
+
+function syncSessionSwitch() {
+  if (!elements.tabs) return;
+  const sessions = sessionsForViews();
+  if (sessions.length <= 1) {
+    if (sessionControl) sessionControl.hidden = true;
+    return;
+  }
+  if (!sessionControl) {
+    sessionControl = document.createElement("div");
+    sessionControl.className = "session-switch";
+    sessionControl.setAttribute("role", "radiogroup");
+    sessionControl.setAttribute("aria-label", "交易時段");
+    elements.tabs.parentNode.insertBefore(sessionControl, elements.tabs);
+  }
+  sessionControl.hidden = false;
+  sessionControl.innerHTML = sessions.map(session => (
+    `<button class="session-option ${session === state.session ? "is-active" : ""}" data-session="${escapeHtml(session)}" type="button" role="radio" aria-checked="${session === state.session}">${escapeHtml(sessionLabel(session))}</button>`
+  )).join("");
+  sessionControl.querySelectorAll(".session-option").forEach(button => {
+    button.addEventListener("click", () => {
+      if (button.dataset.session !== state.session) switchSession(button.dataset.session);
+    });
+  });
+}
+
 function syncTabs() {
   if (!elements.tabs) return;
-  elements.tabs.innerHTML = viewList.map((view, index) => (
-    `<button class="tab ${view.id === state.view ? "is-active" : ""}" data-k="${escapeHtml(view.id)}" type="button">${escapeHtml(view.label || `Item ${index + 1}`)}</button>`
+  const views = viewsForCurrentSession();
+  elements.tabs.innerHTML = views.map((view, index) => (
+    `<button class="tab ${view.id === state.view ? "is-active" : ""}" data-k="${escapeHtml(view.id)}" type="button">${escapeHtml(view.tab_label || view.label || `Item ${index + 1}`)}</button>`
   )).join("");
   elements.tabs.querySelectorAll(".tab").forEach(tab => {
     tab.addEventListener("click", () => {
       state.view = tab.dataset.k;
-      state.sortKey = null;
-      state.selectedColumns = [];
-      state.filters = {};
-      state.selectedMetric = "";
-      state.selectedThreshold = "";
+      state.session = sessionForView(getViewConfig()) || state.session;
+      resetViewState();
+      syncSessionSwitch();
       syncTabs();
       loadView();
     });
@@ -431,11 +647,12 @@ function render() {
   }
 
   elements.rowCount.textContent = rows.length.toLocaleString();
+  const effectiveView = effectiveViewConfig(view);
   elements.sourceDate.textContent = formatSourceDate(payload);
   elements.sourceName.textContent = basename(payload.o || "-");
-  renderTable(view, rows);
-  renderMobileDetails(view, rows);
-  renderChart(elements.chart, view, rows, { metric: state.selectedMetric });
+  renderTable(effectiveView, rows);
+  renderMobileDetails(effectiveView, rows);
+  renderViewCharts(elements.chart, view, effectiveView, rows, { metric: state.selectedMetric });
   syncHeader(payload);
 }
 
@@ -517,8 +734,11 @@ function syncViewControls() {
   const view = getViewConfig();
   const compact = isCompactLayout();
   if (!view) return;
+  const effectiveView = effectiveViewConfig(view);
+  const mobileLayout = effectiveView.mobile_layout || "";
+  const hidesCompactTable = Boolean(effectiveView.hide_table_compact || (mobileLayout && mobileLayout !== "table"));
   document.body.dataset.view = view.id;
-  document.body.dataset.layout = compact ? view.mobile_layout || "compact" : "full";
+  document.body.dataset.layout = compact ? mobileLayout || "compact" : "full";
   setHidden(elements.dateControl, compact);
   setHidden(elements.headerDateControl, !compact);
   setHidden(elements.primaryControl, !view.primary_filter);
@@ -526,10 +746,10 @@ function syncViewControls() {
   setHidden(elements.secondaryControlB, !view.secondary_filters?.[1]);
   setHidden(elements.tertiaryControl, !view.tertiary_filter);
   setHidden(elements.choiceControl, !view.choice_filter);
-  setHidden(elements.metricControl, !view.metric_filter);
-  setHidden(elements.thresholdControl, !view.threshold_filter);
-  setHidden(elements.columnControl, compact && (view.hide_table_compact || view.mobile_layout));
-  if (compact && (view.hide_table_compact || view.mobile_layout)) {
+  setHidden(elements.metricControl, !effectiveView.metric_filter);
+  setHidden(elements.thresholdControl, !effectiveView.threshold_filter);
+  setHidden(elements.columnControl, compact && hidesCompactTable);
+  if (compact && hidesCompactTable) {
     elements.toolbar?.classList.remove("is-expanded");
     elements.filterToggle?.setAttribute("aria-expanded", "false");
   }
@@ -690,7 +910,8 @@ function escapeHtml(value) {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function initInstallHint() {

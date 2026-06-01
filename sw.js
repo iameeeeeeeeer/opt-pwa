@@ -1,4 +1,4 @@
-const CACHE_VERSION = "static-viewer-v37";
+const CACHE_VERSION = "static-viewer-v38";
 const SHELL_PATHS = [
   "./",
   "config.js",
@@ -18,6 +18,7 @@ const SHELL_PATHS = [
   "icons/apple-touch-icon.png"
 ];
 const shellUrls = () => SHELL_PATHS.map(path => new URL(path, self.registration.scope).toString());
+const shellUrlSet = () => new Set(shellUrls());
 
 self.addEventListener("install", event => {
   event.waitUntil(
@@ -40,12 +41,17 @@ self.addEventListener("fetch", event => {
   if (url.origin !== self.location.origin || event.request.method !== "GET") {
     return;
   }
+  if (!shellUrlSet().has(url.toString())) {
+    return;
+  }
 
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        const copy = response.clone();
-        caches.open(CACHE_VERSION).then(cache => cache.put(event.request, copy));
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_VERSION).then(cache => cache.put(event.request, copy));
+        }
         return response;
       })
       .catch(() => caches.match(event.request))
@@ -66,14 +72,14 @@ self.addEventListener("push", event => {
       icon: "icons/icon-192.png",
       badge: "icons/icon-192.png",
       tag: payload.tag || "daily-update",
-      data: { url: payload.url || "./" }
+      data: { url: notificationTargetUrl(payload.url || "./") }
     })
   );
 });
 
 self.addEventListener("notificationclick", event => {
   event.notification.close();
-  const targetUrl = new URL(event.notification.data?.url || "./", self.registration.scope).toString();
+  const targetUrl = notificationTargetUrl(event.notification.data?.url || "./");
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(clients => {
       for (const client of clients) {
@@ -88,3 +94,17 @@ self.addEventListener("notificationclick", event => {
     })
   );
 });
+
+function notificationTargetUrl(value) {
+  const fallback = new URL("./", self.registration.scope);
+  let target;
+  try {
+    target = new URL(value || "./", self.registration.scope);
+  } catch {
+    return fallback.toString();
+  }
+  if (target.origin !== self.location.origin || !target.toString().startsWith(self.registration.scope)) {
+    return fallback.toString();
+  }
+  return target.toString();
+}
