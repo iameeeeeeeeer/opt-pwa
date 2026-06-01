@@ -975,7 +975,9 @@ async function syncKeyPanel(errorMessage = "") {
     return;
   }
   if (!device.hasKey) {
-    elements.keyPanelStatus.textContent = "建立裝置後，將註冊碼加入同步設定";
+    elements.keyPanelStatus.textContent = errorMessage
+      ? friendlyDeviceError(errorMessage, device)
+      : `建立裝置後，將註冊碼加入同步設定。目前 origin：${window.location.origin}`;
     return;
   }
   elements.keyPanelStatus.textContent = errorMessage
