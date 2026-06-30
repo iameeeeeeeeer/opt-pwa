@@ -29,8 +29,11 @@ export async function getConnectionDiagnostics(lastError = "") {
       indexedDB: "indexedDB" in window,
       cryptoSubtle: Boolean(window.crypto?.subtle),
       decompressionStream: "DecompressionStream" in window,
-      serviceWorker: "serviceWorker" in navigator
+      serviceWorker: "serviceWorker" in navigator,
+      pushManager: "PushManager" in window,
+      notification: "Notification" in window
     },
+    notification: await getNotificationDiagnostics(),
     device: {
       hasKey: Boolean(record?.privateKey),
       deviceId: record?.deviceId || "",
@@ -65,6 +68,43 @@ export async function getConnectionDiagnostics(lastError = "") {
     }
   }
 
+  return diagnostics;
+}
+
+async function getNotificationDiagnostics() {
+  const diagnostics = {
+    permission: "Notification" in window ? Notification.permission : "unsupported",
+    serviceWorkerReady: false,
+    serviceWorkerScope: "",
+    activeServiceWorkerState: "",
+    pushSubscription: {
+      present: false,
+      endpointHost: "",
+      hasKeys: false
+    },
+    error: ""
+  };
+  if (!("serviceWorker" in navigator)) {
+    diagnostics.error = "serviceWorker unsupported";
+    return diagnostics;
+  }
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    diagnostics.serviceWorkerReady = true;
+    diagnostics.serviceWorkerScope = registration.scope || "";
+    diagnostics.activeServiceWorkerState = registration.active?.state || "";
+    if ("pushManager" in window) {
+      const subscription = await registration.pushManager.getSubscription();
+      diagnostics.pushSubscription.present = Boolean(subscription);
+      if (subscription) {
+        const payload = subscription.toJSON();
+        diagnostics.pushSubscription.endpointHost = endpointHost(payload.endpoint || "");
+        diagnostics.pushSubscription.hasKeys = Boolean(payload.keys?.p256dh && payload.keys?.auth);
+      }
+    }
+  } catch (error) {
+    diagnostics.error = error.message || String(error);
+  }
   return diagnostics;
 }
 

@@ -50,6 +50,40 @@ export async function createPushRegistrationCode() {
   }, null, 2);
 }
 
+export async function showLocalNotificationTest() {
+  if (!isPushSupported()) {
+    throw new Error("此裝置或瀏覽器不支援通知");
+  }
+  if (Notification.permission === "denied") {
+    throw new Error("通知權限已被拒絕，請到 iOS 設定重新允許");
+  }
+  const permission = Notification.permission === "granted"
+    ? "granted"
+    : await Notification.requestPermission();
+  if (permission !== "granted") {
+    throw new Error("尚未允許通知");
+  }
+
+  const registration = await navigator.serviceWorker.ready;
+  const tag = `local-notification-test-${Date.now()}`;
+  const title = `本機通知測試 ${new Date().toLocaleTimeString("zh-TW", { hour12: false })}`;
+  await registration.showNotification(title, {
+    body: "這則通知不經過 Mac mini 或 Apple Push，只測試本機 PWA 顯示通知。",
+    icon: "icons/icon-192.png",
+    badge: "icons/icon-192.png",
+    tag,
+    data: { url: "./" }
+  });
+  return {
+    v: "local-notification-test-v1",
+    ok: true,
+    permission,
+    title,
+    tag,
+    t: new Date().toISOString()
+  };
+}
+
 function getConfig() {
   return window.OptionPwaConfig || {};
 }

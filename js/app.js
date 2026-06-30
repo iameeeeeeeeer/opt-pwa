@@ -12,7 +12,8 @@ import {
 } from "./crypto-data.js";
 import {
   createPushRegistrationCode,
-  isPushSupported
+  isPushSupported,
+  showLocalNotificationTest
 } from "./push-registration.js";
 
 let layoutConfig = null;
@@ -90,6 +91,7 @@ const elements = {
   showRegistrationButton: document.getElementById("showRegistrationButton"),
   diagnosticsButton: document.getElementById("diagnosticsButton"),
   pushRegistrationButton: document.getElementById("pushRegistrationButton"),
+  notificationTestButton: document.getElementById("notificationTestButton"),
   clearKeyButton: document.getElementById("clearKeyButton"),
   clearConfirm: document.getElementById("clearConfirm"),
   confirmClearKeyButton: document.getElementById("confirmClearKeyButton"),
@@ -185,6 +187,16 @@ elements.pushRegistrationButton?.addEventListener("click", async () => {
     elements.keyPanelStatus.textContent = "通知註冊碼已建立";
   } catch (error) {
     await syncKeyPanel(error.message || "通知無法啟用");
+  }
+});
+elements.notificationTestButton?.addEventListener("click", async () => {
+  devicePanelOpen = true;
+  setClearConfirmOpen(false);
+  try {
+    const result = await showLocalNotificationTest();
+    await showRegistrationCode(JSON.stringify(result, null, 2), "本機通知測試已送出");
+  } catch (error) {
+    await syncKeyPanel(error.message || "本機通知測試失敗");
   }
 });
 elements.clearKeyButton?.addEventListener("click", async () => {
@@ -972,6 +984,9 @@ async function syncKeyPanel(errorMessage = "") {
   }
   if (elements.pushRegistrationButton) {
     elements.pushRegistrationButton.hidden = !device.hasKey || !isPushSupported();
+  }
+  if (elements.notificationTestButton) {
+    elements.notificationTestButton.hidden = !device.hasKey || !isPushSupported();
   }
   elements.clearKeyButton.hidden = !device.hasKey;
   setClearConfirmOpen(clearConfirmOpen && device.hasKey);
