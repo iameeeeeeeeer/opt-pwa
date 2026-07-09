@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Mobile Viewer">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://script.google.com https://script.googleusercontent.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none';">
+  <title>Mobile Viewer</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" sizes="120x120" href="icons/apple-touch-icon-120.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon-152.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="icons/apple-touch-icon-167.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="vendor/echarts.min.js"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-title">
+      <h1 id="appTitle">Mobile Viewer</h1>
+      <label id="headerDateControl" class="header-date-control" hidden>
+        <span class="sr-only">日期</span>
+        <select id="headerDateSelect" aria-label="日期"></select>
+      </label>
+      <p id="statusLine">Loading</p>
+    </div>
+    <div class="header-actions">
+      <button id="refreshButton" class="icon-button" type="button" title="重新整理">更新</button>
+      <button id="deviceButton" class="icon-button secondary subtle" type="button" title="裝置設定" aria-expanded="false" hidden>裝置</button>
+    </div>
+  </header>
+
+  <section id="installHint" class="install-hint" hidden>
+    <div>
+      <strong>加入 iPhone 主畫面</strong>
+      <span>在 Safari 按分享，選「加入主畫面」，之後就能像 App 一樣開啟。</span>
+    </div>
+    <button id="installHintClose" class="icon-button" type="button" title="關閉安裝提示">Close</button>
+  </section>
+
+  <section id="keyPanel" class="key-panel" aria-label="手機解密金鑰">
+    <div>
+      <strong id="keyPanelTitle">裝置設定</strong>
+      <span id="keyPanelStatus">檢查中</span>
+    </div>
+    <div class="key-actions">
+      <button id="createKeyButton" class="icon-button" type="button">建立裝置</button>
+      <button id="showRegistrationButton" class="icon-button secondary" type="button">顯示註冊碼</button>
+      <button id="diagnosticsButton" class="icon-button secondary" type="button">診斷</button>
+      <button id="pushRegistrationButton" class="icon-button secondary" type="button">通知</button>
+      <button id="notificationTestButton" class="icon-button secondary" type="button">測試通知</button>
+      <button id="clearKeyButton" class="icon-button danger" type="button">清除綁定</button>
+    </div>
+    <div id="clearConfirm" class="clear-confirm" hidden>
+      <span>清除後此裝置會失去解密金鑰，必須重新建立裝置並註冊。</span>
+      <div class="clear-confirm-actions">
+        <button id="confirmClearKeyButton" class="icon-button danger" type="button">確認清除</button>
+        <button id="cancelClearKeyButton" class="icon-button secondary" type="button">取消</button>
+      </div>
+    </div>
+    <textarea id="registrationCode" class="registration-code" readonly hidden></textarea>
+  </section>
+
+  <nav class="tabs" aria-label="資料類型"></nav>
+
+  <main>
+    <section class="toolbar" aria-label="篩選">
+      <label class="date-control">
+        <span id="dateControlLabel">Date</span>
+        <select id="dateSelect"></select>
+      </label>
+      <label id="primaryControl" class="primary-control" hidden>
+        <span id="primaryControlLabel">Filter 1</span>
+        <select id="primarySelect"></select>
+      </label>
+      <label id="secondaryControlA" class="secondary-control-a" hidden>
+        <span id="secondaryControlALabel">Filter 2</span>
+        <select id="secondarySelectA"></select>
+      </label>
+      <label id="secondaryControlB" class="secondary-control-b" hidden>
+        <span id="secondaryControlBLabel">Filter 3</span>
+        <select id="secondarySelectB"></select>
+      </label>
+      <label id="tertiaryControl" class="tertiary-control" hidden>
+        <span id="tertiaryControlLabel">Filter 4</span>
+        <select id="tertiarySelect"></select>
+      </label>
+      <label id="choiceControl" class="choice-control" hidden>
+        <span id="choiceControlLabel">Filter 5</span>
+        <select id="choiceSelect"></select>
+      </label>
+      <label id="metricControl" class="metric-control" hidden>
+        <span id="metricControlLabel">Metric</span>
+        <select id="metricSelect"></select>
+      </label>
+      <label id="thresholdControl" class="threshold-control" hidden>
+        <span id="thresholdControlLabel">Range</span>
+        <select id="thresholdSelect"></select>
+      </label>
+      <button id="filterToggle" class="filter-toggle" type="button" aria-expanded="false" aria-controls="secondaryControls">篩選</button>
+      <div id="secondaryControls" class="secondary-controls">
+        <label id="columnControl" class="column-control">
+          <span id="columnControlLabel">Columns</span>
+          <select id="columnSelect" multiple></select>
+        </label>
+        <label>
+          <span id="searchControlLabel">Search</span>
+          <input id="searchInput" type="search" autocomplete="off">
+        </label>
+      </div>
+    </section>
+
+    <section id="offlineBanner" class="banner" hidden>資料暫時無法載入。</section>
+
+    <section class="metrics" aria-label="摘要">
+      <div><span id="rowCount">0</span><small>rows</small></div>
+      <div><span id="sourceDate">-</span><small>date</small></div>
+      <div><span id="sourceName">-</span><small>source</small></div>
+    </section>
+
+    <section id="mobilePrimaryDetail" class="mobile-primary-detail" hidden></section>
+    <section id="mobileGroupedDetail" class="mobile-grouped-detail" hidden></section>
+
+    <section class="chart-shell">
+      <div id="chart" class="chart"></div>
+    </section>
+
+    <section class="table-shell">
+      <table id="dataTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

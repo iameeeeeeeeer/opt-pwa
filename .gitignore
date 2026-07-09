@@ -1,0 +1,11 @@
+.DS_Store
+*.log
+.env
+.env.*
+secrets/
+*.json
+!manifest.json
+node_modules/
+
+# Manual night-session backup copies (e.g. app.js.txo_night_backup_20260531_1340)
+*.txo_night_backup_*

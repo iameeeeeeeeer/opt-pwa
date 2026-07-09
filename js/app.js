@@ -1,0 +1,1045 @@
+import { renderChart } from "./charts.js";
+import {
+  clearDeviceKey,
+  clearPayloadCache,
+  createDeviceRegistrationCode,
+  getConnectionDiagnostics,
+  getDeviceRegistrationCode,
+  getDeviceState,
+  getStatusPayload,
+  getLayoutConfig,
+  getViewPayload
+} from "./crypto-data.js";
+import {
+  createPushRegistrationCode,
+  isPushSupported,
+  showLocalNotificationTest
+} from "./push-registration.js";
+
+let layoutConfig = null;
+let viewList = [];
+let viewMap = new Map();
+let devicePanelOpen = false;
+let clearConfirmOpen = false;
+let sessionControl = null;
+let displayModeControl = null;
+let displayModeLabel = null;
+let displayModeGroup = null;
+let displayModeNote = null;
+
+const state = {
+  view: "",
+  session: "day",
+  displayModes: {},
+  payload: null,
+  rows: [],
+  selectedColumns: [],
+  filters: {},
+  selectedMetric: "",
+  selectedThreshold: "",
+  sortKey: null,
+  sortDir: "asc",
+  statusText: "",
+  lastError: ""
+};
+
+const elements = {
+  appTitle: document.getElementById("appTitle"),
+  statusLine: document.getElementById("statusLine"),
+  refreshButton: document.getElementById("refreshButton"),
+  deviceButton: document.getElementById("deviceButton"),
+  toolbar: document.querySelector(".toolbar"),
+  tabs: document.querySelector(".tabs"),
+  filterToggle: document.getElementById("filterToggle"),
+  secondaryControls: document.getElementById("secondaryControls"),
+  dateControl: document.querySelector(".date-control"),
+  dateControlLabel: document.getElementById("dateControlLabel"),
+  dateSelect: document.getElementById("dateSelect"),
+  primaryControl: document.getElementById("primaryControl"),
+  primaryControlLabel: document.getElementById("primaryControlLabel"),
+  primarySelect: document.getElementById("primarySelect"),
+  secondaryControlA: document.getElementById("secondaryControlA"),
+  secondaryControlALabel: document.getElementById("secondaryControlALabel"),
+  secondarySelectA: document.getElementById("secondarySelectA"),
+  secondaryControlB: document.getElementById("secondaryControlB"),
+  secondaryControlBLabel: document.getElementById("secondaryControlBLabel"),
+  secondarySelectB: document.getElementById("secondarySelectB"),
+  tertiaryControl: document.getElementById("tertiaryControl"),
+  tertiaryControlLabel: document.getElementById("tertiaryControlLabel"),
+  tertiarySelect: document.getElementById("tertiarySelect"),
+  choiceControl: document.getElementById("choiceControl"),
+  choiceControlLabel: document.getElementById("choiceControlLabel"),
+  choiceSelect: document.getElementById("choiceSelect"),
+  metricControl: document.getElementById("metricControl"),
+  metricControlLabel: document.getElementById("metricControlLabel"),
+  metricSelect: document.getElementById("metricSelect"),
+  thresholdControl: document.getElementById("thresholdControl"),
+  thresholdControlLabel: document.getElementById("thresholdControlLabel"),
+  thresholdSelect: document.getElementById("thresholdSelect"),
+  columnControl: document.getElementById("columnControl"),
+  columnControlLabel: document.getElementById("columnControlLabel"),
+  columnSelect: document.getElementById("columnSelect"),
+  searchControlLabel: document.getElementById("searchControlLabel"),
+  searchInput: document.getElementById("searchInput"),
+  offlineBanner: document.getElementById("offlineBanner"),
+  installHint: document.getElementById("installHint"),
+  installHintClose: document.getElementById("installHintClose"),
+  keyPanel: document.getElementById("keyPanel"),
+  keyPanelTitle: document.getElementById("keyPanelTitle"),
+  keyPanelStatus: document.getElementById("keyPanelStatus"),
+  createKeyButton: document.getElementById("createKeyButton"),
+  showRegistrationButton: document.getElementById("showRegistrationButton"),
+  diagnosticsButton: document.getElementById("diagnosticsButton"),
+  pushRegistrationButton: document.getElementById("pushRegistrationButton"),
+  notificationTestButton: document.getElementById("notificationTestButton"),
+  clearKeyButton: document.getElementById("clearKeyButton"),
+  clearConfirm: document.getElementById("clearConfirm"),
+  confirmClearKeyButton: document.getElementById("confirmClearKeyButton"),
+  cancelClearKeyButton: document.getElementById("cancelClearKeyButton"),
+  registrationCode: document.getElementById("registrationCode"),
+  rowCount: document.getElementById("rowCount"),
+  sourceDate: document.getElementById("sourceDate"),
+  sourceName: document.getElementById("sourceName"),
+  mobilePrimaryDetail: document.getElementById("mobilePrimaryDetail"),
+  mobileGroupedDetail: document.getElementById("mobileGroupedDetail"),
+  chart: document.getElementById("chart"),
+  table: document.getElementById("dataTable"),
+  headerDateControl: document.getElementById("headerDateControl"),
+  headerDateSelect: document.getElementById("headerDateSelect")
+};
+
+elements.headerDateSelect?.addEventListener("change", () => loadView(elements.headerDateSelect.value));
+elements.refreshButton.addEventListener("click", () => {
+  clearPayloadCache();
+  layoutConfig = null;
+  viewList = [];
+  viewMap = new Map();
+  loadApp();
+});
+
+elements.deviceButton?.addEventListener("click", async () => {
+  devicePanelOpen = !devicePanelOpen;
+  await syncKeyPanel();
+});
+
+elements.filterToggle?.addEventListener("click", () => {
+  const expanded = !elements.toolbar.classList.contains("is-expanded");
+  elements.toolbar.classList.toggle("is-expanded", expanded);
+  elements.filterToggle.setAttribute("aria-expanded", String(expanded));
+});
+
+elements.dateSelect.addEventListener("change", () => loadView(elements.dateSelect.value));
+elements.primarySelect?.addEventListener("change", () => {
+  setFilter(getViewConfig()?.primary_filter?.field, elements.primarySelect.value);
+  render();
+});
+elements.secondarySelectA?.addEventListener("change", () => {
+  setFilter(getViewConfig()?.secondary_filters?.[0]?.field, elements.secondarySelectA.value);
+  render();
+});
+elements.secondarySelectB?.addEventListener("change", () => {
+  setFilter(getViewConfig()?.secondary_filters?.[1]?.field, elements.secondarySelectB.value);
+  render();
+});
+elements.tertiarySelect?.addEventListener("change", () => {
+  setFilter(getViewConfig()?.tertiary_filter?.field, elements.tertiarySelect.value);
+  render();
+});
+elements.choiceSelect?.addEventListener("change", () => {
+  setFilter(getViewConfig()?.choice_filter?.field, elements.choiceSelect.value);
+  render();
+});
+elements.metricSelect?.addEventListener("change", () => {
+  state.selectedMetric = elements.metricSelect.value;
+  render();
+});
+elements.thresholdSelect?.addEventListener("change", () => {
+  state.selectedThreshold = elements.thresholdSelect.value;
+  render();
+});
+elements.searchInput.addEventListener("input", () => render());
+elements.columnSelect.addEventListener("change", () => {
+  state.selectedColumns = [...elements.columnSelect.selectedOptions].map(option => option.value);
+  render();
+});
+elements.createKeyButton?.addEventListener("click", async () => {
+  devicePanelOpen = true;
+  setClearConfirmOpen(false);
+  await showRegistrationCode(await createDeviceRegistrationCode());
+  await syncKeyPanel();
+});
+elements.showRegistrationButton?.addEventListener("click", async () => {
+  setClearConfirmOpen(false);
+  const code = await getDeviceRegistrationCode();
+  if (code) await showRegistrationCode(code);
+});
+elements.diagnosticsButton?.addEventListener("click", async () => {
+  devicePanelOpen = true;
+  setClearConfirmOpen(false);
+  const diagnostics = await getConnectionDiagnostics(state.lastError || "");
+  await showRegistrationCode(JSON.stringify(diagnostics, null, 2), "診斷資訊已顯示");
+});
+elements.pushRegistrationButton?.addEventListener("click", async () => {
+  devicePanelOpen = true;
+  setClearConfirmOpen(false);
+  try {
+    await showRegistrationCode(await createPushRegistrationCode());
+    elements.keyPanelStatus.textContent = "通知註冊碼已建立";
+  } catch (error) {
+    await syncKeyPanel(error.message || "通知無法啟用");
+  }
+});
+elements.notificationTestButton?.addEventListener("click", async () => {
+  devicePanelOpen = true;
+  setClearConfirmOpen(false);
+  try {
+    const result = await showLocalNotificationTest();
+    await showRegistrationCode(JSON.stringify(result, null, 2), "本機通知測試已送出");
+  } catch (error) {
+    await syncKeyPanel(error.message || "本機通知測試失敗");
+  }
+});
+elements.clearKeyButton?.addEventListener("click", async () => {
+  devicePanelOpen = true;
+  setClearConfirmOpen(true);
+  await syncKeyPanel();
+});
+elements.cancelClearKeyButton?.addEventListener("click", async () => {
+  setClearConfirmOpen(false);
+  await syncKeyPanel();
+});
+elements.confirmClearKeyButton?.addEventListener("click", async () => {
+  clearPayloadCache();
+  devicePanelOpen = true;
+  await clearDeviceKey();
+  setClearConfirmOpen(false);
+  await syncKeyPanel();
+  elements.registrationCode.hidden = true;
+  elements.registrationCode.value = "";
+});
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .register(new URL("../sw.js", import.meta.url), { updateViaCache: "none" })
+    .then(registration => registration.update())
+    .catch(() => {});
+}
+
+initInstallHint();
+syncKeyPanel();
+loadApp();
+
+async function loadApp() {
+  elements.offlineBanner.hidden = true;
+  state.lastError = "";
+  try {
+    await loadLayoutConfig();
+    await loadStatus();
+    await loadView();
+  } catch (error) {
+    state.lastError = error.message || String(error);
+    elements.offlineBanner.hidden = false;
+    elements.statusLine.textContent = error.message;
+    await syncKeyPanel(error.message);
+  }
+}
+
+async function loadLayoutConfig() {
+  layoutConfig = await getLayoutConfig();
+  viewList = layoutConfig.views || [];
+  viewMap = new Map(viewList.map(view => [view.id, view]));
+  if (!state.view || !viewMap.has(state.view)) {
+    state.view = layoutConfig.default_view || viewList[0]?.id || "";
+  }
+  state.session = sessionForView(getViewConfig()) || state.session || firstSession();
+  syncSessionSwitch();
+  syncTabs();
+  syncStaticLabels();
+}
+
+async function loadStatus() {
+  try {
+    const status = await getStatusPayload();
+    const version = status.v || {};
+    const segments = layoutConfig?.status_segments || [];
+    state.statusText = segments.length
+      ? segments.map(segment => `${segment.label} ${version[segment.version_key] || "-"}`).join(" / ")
+      : "";
+    syncHeader();
+  } catch (error) {
+    state.statusText = "狀態暫不可用";
+    elements.statusLine.textContent = "狀態暫不可用";
+    await syncKeyPanel(error.message);
+  }
+}
+
+async function loadView(dateOverride) {
+  const view = getViewConfig();
+  if (!view) return;
+  const date = dateOverride || defaultDateForView(view);
+  syncViewControls();
+  elements.offlineBanner.hidden = true;
+  try {
+    const payload = await getViewPayload(view.id, date);
+    state.lastError = "";
+    state.payload = payload;
+    state.rows = payload.r || [];
+    syncDateSelect(payload, date, view);
+    syncPrimarySelect(view);
+    syncSecondarySelects(view);
+    syncTertiarySelect(view);
+    syncChoiceSelect(view);
+    syncDisplayModeSelect(view);
+    const effectiveView = effectiveViewConfig(view);
+    syncMetricSelect(effectiveView);
+    syncThresholdSelect(effectiveView);
+    syncColumnSelect(effectiveView);
+    render();
+  } catch (error) {
+    state.lastError = error.message || String(error);
+    elements.offlineBanner.hidden = false;
+    elements.statusLine.textContent = `資料錯誤: ${error.message}`;
+    await syncKeyPanel(error.message);
+  }
+}
+
+function sessionForView(view) {
+  return view?.session || "day";
+}
+
+function firstSession() {
+  return sessionForView(viewList[0]) || "day";
+}
+
+function sessionLabel(session) {
+  const view = viewList.find(item => sessionForView(item) === session);
+  if (view?.session_label) return view.session_label;
+  return session === "night" ? "夜盤" : "日盤";
+}
+
+function sessionsForViews() {
+  const sessions = [];
+  viewList.forEach(view => {
+    const session = sessionForView(view);
+    if (!sessions.includes(session)) sessions.push(session);
+  });
+  return sessions;
+}
+
+function viewsForCurrentSession() {
+  const views = viewList.filter(view => sessionForView(view) === state.session);
+  return views.length ? views : viewList;
+}
+
+function resetViewState() {
+  state.sortKey = null;
+  state.selectedColumns = [];
+  state.filters = {};
+  state.selectedMetric = "";
+  state.selectedThreshold = "";
+}
+
+function displayModeOptions(view) {
+  const config = view?.display_modes;
+  return config?.options || [];
+}
+
+function displayModesAreStacked(view) {
+  return view?.display_modes?.layout === "stacked" && displayModeOptions(view).length > 1;
+}
+
+function defaultDisplayMode(view) {
+  const config = view?.display_modes;
+  const options = displayModeOptions(view);
+  if (!options.length) return null;
+  return options.find(option => option.value === config.default) || options[0];
+}
+
+function activeDisplayMode(view) {
+  const config = view?.display_modes;
+  const options = displayModeOptions(view);
+  if (!options.length) return null;
+  if (displayModesAreStacked(view)) return defaultDisplayMode(view);
+  const selected = state.displayModes[view.id] || config.default || options[0].value;
+  return options.find(option => option.value === selected) || options.find(option => option.value === config.default) || options[0];
+}
+
+function effectiveViewConfigForMode(view, mode) {
+  if (!mode) return view;
+  const effective = { ...view };
+  ["mobile_layout", "hide_table_compact", "hide_chart_compact", "hide_metrics_compact", "hide_date_compact", "fixed_compact_columns", "mobile_default_columns", "chart"].forEach(key => {
+    if (Object.prototype.hasOwnProperty.call(mode, key)) effective[key] = mode[key];
+  });
+  return effective;
+}
+
+function effectiveViewConfig(view) {
+  return effectiveViewConfigForMode(view, activeDisplayMode(view));
+}
+
+function ensureDisplayModeControl() {
+  if (displayModeControl) return;
+  displayModeControl = document.createElement("fieldset");
+  displayModeControl.className = "display-mode-control";
+  displayModeLabel = document.createElement("legend");
+  displayModeGroup = document.createElement("div");
+  displayModeGroup.className = "display-mode-radio-group";
+  displayModeGroup.setAttribute("role", "radiogroup");
+  displayModeNote = document.createElement("p");
+  displayModeNote.className = "display-mode-note display-mode-control-note";
+  displayModeGroup.addEventListener("change", event => {
+    if (!event.target.matches("input[type='radio'][data-display-mode]")) return;
+    const view = getViewConfig();
+    if (!view) return;
+    state.displayModes[view.id] = event.target.dataset.displayMode;
+    state.sortKey = null;
+    state.selectedColumns = [];
+    syncViewControls();
+    syncDisplayModeSelect(view);
+    const effectiveView = effectiveViewConfig(view);
+    syncMetricSelect(effectiveView);
+    syncThresholdSelect(effectiveView);
+    syncColumnSelect(effectiveView);
+    render();
+  });
+  displayModeControl.append(displayModeLabel, displayModeGroup, displayModeNote);
+  elements.metricControl?.parentNode?.insertBefore(displayModeControl, elements.metricControl);
+}
+
+function syncDisplayModeSelect(view) {
+  const config = view?.display_modes;
+  const options = displayModeOptions(view);
+  if (!options.length || displayModesAreStacked(view)) {
+    if (displayModeControl) displayModeControl.hidden = true;
+    return;
+  }
+  ensureDisplayModeControl();
+  displayModeControl.hidden = false;
+  displayModeLabel.textContent = config.label || "呈現方式";
+  const selected = options.some(option => option.value === state.displayModes[view.id])
+    ? state.displayModes[view.id]
+    : config.default || options[0].value;
+  state.displayModes[view.id] = selected;
+  displayModeGroup.innerHTML = options
+    .map(option => (
+      `<label class="display-mode-radio">
+        <input type="radio" name="display-mode-${escapeHtml(view.id)}" value="${escapeHtml(option.value)}" data-display-mode="${escapeHtml(option.value)}" ${option.value === selected ? "checked" : ""}>
+        <span>${escapeHtml(option.label)}</span>
+      </label>`
+    ))
+    .join("");
+  const selectedOption = options.find(option => option.value === selected);
+  displayModeNote.textContent = selectedOption?.description || "";
+  displayModeNote.hidden = !displayModeNote.textContent;
+}
+
+function renderViewCharts(container, view, effectiveView, rows, options = {}) {
+  if (!container) return;
+  if (!displayModesAreStacked(view)) {
+    resetStackedDisplayCharts(container);
+    renderChart(container, effectiveView, rows, options);
+    return;
+  }
+  const existingChart = window.echarts?.getInstanceByDom(container);
+  if (existingChart) existingChart.dispose();
+  container.classList.add("is-stacked-display");
+  container.innerHTML = displayModeOptions(view).map(mode => (
+    `<section class="display-mode-panel" data-display-mode-panel="${escapeHtml(mode.value)}">
+      <h2>${escapeHtml(mode.label)}</h2>
+      ${mode.description ? `<p class="display-mode-note">${escapeHtml(mode.description)}</p>` : ""}
+      <div class="display-mode-chart" data-display-mode-chart="${escapeHtml(mode.value)}"></div>
+    </section>`
+  )).join("");
+  const chartNodes = [...container.querySelectorAll(".display-mode-chart")];
+  displayModeOptions(view).forEach((mode, index) => {
+    const chartNode = chartNodes[index];
+    if (!chartNode) return;
+    const modeView = effectiveViewConfigForMode(view, mode);
+    chartNode.dataset.chartType = modeView.chart?.type || "";
+    renderChart(chartNode, modeView, rows, options);
+  });
+}
+
+function resetStackedDisplayCharts(container) {
+  if (!container.classList.contains("is-stacked-display")) return;
+  container.querySelectorAll(".display-mode-chart").forEach(node => {
+    const chart = window.echarts?.getInstanceByDom(node);
+    if (chart) chart.dispose();
+  });
+  container.classList.remove("is-stacked-display");
+  container.innerHTML = "";
+}
+
+function switchSession(session) {
+  const current = getViewConfig();
+  const group = current?.session_group;
+  const next = viewList.find(view => sessionForView(view) === session && view.session_group === group)
+    || viewList.find(view => sessionForView(view) === session)
+    || current;
+  state.session = session;
+  if (next) state.view = next.id;
+  resetViewState();
+  syncSessionSwitch();
+  syncTabs();
+  loadView();
+}
+
+function syncSessionSwitch() {
+  if (!elements.tabs) return;
+  const sessions = sessionsForViews();
+  if (sessions.length <= 1) {
+    if (sessionControl) sessionControl.hidden = true;
+    return;
+  }
+  if (!sessionControl) {
+    sessionControl = document.createElement("div");
+    sessionControl.className = "session-switch";
+    sessionControl.setAttribute("role", "radiogroup");
+    sessionControl.setAttribute("aria-label", "交易時段");
+    elements.tabs.parentNode.insertBefore(sessionControl, elements.tabs);
+  }
+  sessionControl.hidden = false;
+  sessionControl.innerHTML = sessions.map(session => (
+    `<button class="session-option ${session === state.session ? "is-active" : ""}" data-session="${escapeHtml(session)}" type="button" role="radio" aria-checked="${session === state.session}">${escapeHtml(sessionLabel(session))}</button>`
+  )).join("");
+  sessionControl.querySelectorAll(".session-option").forEach(button => {
+    button.addEventListener("click", () => {
+      if (button.dataset.session !== state.session) switchSession(button.dataset.session);
+    });
+  });
+}
+
+function syncTabs() {
+  if (!elements.tabs) return;
+  const views = viewsForCurrentSession();
+  elements.tabs.innerHTML = views.map((view, index) => (
+    `<button class="tab ${view.id === state.view ? "is-active" : ""}" data-k="${escapeHtml(view.id)}" type="button">${escapeHtml(view.tab_label || view.label || `Item ${index + 1}`)}</button>`
+  )).join("");
+  elements.tabs.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      state.view = tab.dataset.k;
+      state.session = sessionForView(getViewConfig()) || state.session;
+      resetViewState();
+      syncSessionSwitch();
+      syncTabs();
+      loadView();
+    });
+  });
+}
+
+function syncStaticLabels() {
+  elements.refreshButton.textContent = isCompactLayout() ? "更新" : "Refresh";
+  if (elements.dateControlLabel) elements.dateControlLabel.textContent = "日期";
+  if (elements.columnControlLabel) elements.columnControlLabel.textContent = "欄位";
+  if (elements.searchControlLabel) elements.searchControlLabel.textContent = "搜尋";
+}
+
+function syncDateSelect(payload, selectedValue, view) {
+  const dates = payload.a || [];
+  const selectedDates = payload.s || [];
+  const exactDatesOnly = Boolean(view.exact_dates_compact && isCompactLayout());
+  const options = [];
+  if (!exactDatesOnly && view.default_date !== "latest") {
+    options.push({ value: view.default_date, label: "最新 5 日" });
+  }
+  if (!exactDatesOnly) {
+    options.push({ value: "latest", label: "最新日期" });
+  }
+  dates.slice(0, 40).forEach(date => options.push({ value: date, label: displayDate(date) }));
+  const optionHtml = options
+    .map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
+    .join("");
+  const exactDateValue = payload.d || selectedDates[0] || dates[0] || selectedValue;
+  const value = exactDatesOnly
+    ? (dates.includes(selectedValue) ? selectedValue : exactDateValue)
+    : (selectedValue === view.default_date && selectedDates.length <= 1 ? "latest" : selectedValue);
+  const normalizedValue = options.some(option => option.value === value) ? value : options[0]?.value || "";
+  [elements.dateSelect, elements.headerDateSelect].forEach(select => {
+    if (!select) return;
+    select.innerHTML = optionHtml;
+    select.value = normalizedValue;
+  });
+}
+
+function syncPrimarySelect(view) {
+  const filter = view.primary_filter;
+  if (!filter || !elements.primarySelect) return;
+  setControlLabel(elements.primaryControlLabel, filter.label);
+  const compact = isCompactLayout();
+  const rows = filter.sort_field
+    ? [...state.rows].sort((a, b) => Number(b[filter.sort_field] || 0) - Number(a[filter.sort_field] || 0))
+    : state.rows;
+  const values = uniqueValues(rows, filter.field);
+  const options = compact
+    ? values.map(value => ({ value, label: value }))
+    : [{ value: filter.all_value || "all", label: filter.all_label || "全部" }, ...values.map(value => ({ value, label: value }))];
+  syncSelect(elements.primarySelect, options, filter.field, compact ? options[0]?.value : filter.all_value || "all");
+}
+
+function syncSecondarySelects(view) {
+  syncConfiguredSelect(view.secondary_filters?.[0], elements.secondarySelectA, elements.secondaryControlALabel, false);
+  syncConfiguredSelect(view.secondary_filters?.[1], elements.secondarySelectB, elements.secondaryControlBLabel, false);
+}
+
+function syncTertiarySelect(view) {
+  const filter = view.tertiary_filter;
+  if (!filter || !elements.tertiarySelect) return;
+  setControlLabel(elements.tertiaryControlLabel, filter.label);
+  const values = uniqueValues(state.rows, filter.field).sort(compareConfiguredValues);
+  syncSelect(elements.tertiarySelect, values.map(value => ({ value, label: value })), filter.field, values[0] || "");
+}
+
+function syncChoiceSelect(view) {
+  const filter = view.choice_filter;
+  if (!filter || !elements.choiceSelect) return;
+  setControlLabel(elements.choiceControlLabel, filter.label);
+  syncSelect(elements.choiceSelect, filter.options || [], filter.field, filter.default || filter.options?.[0]?.value || "");
+}
+
+function syncMetricSelect(view) {
+  const filter = view.metric_filter;
+  if (!filter || !elements.metricSelect) return;
+  setControlLabel(elements.metricControlLabel, filter.label || "圖形指標");
+  elements.metricSelect.innerHTML = (filter.options || [])
+    .map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
+    .join("");
+  if (!(filter.options || []).some(option => option.value === state.selectedMetric)) {
+    state.selectedMetric = filter.default || filter.options?.[0]?.value || "";
+  }
+  elements.metricSelect.value = state.selectedMetric;
+}
+
+function syncThresholdSelect(view) {
+  const filter = view.threshold_filter;
+  if (!filter || !elements.thresholdSelect) return;
+  setControlLabel(elements.thresholdControlLabel, filter.label || "顯示門檻");
+  elements.thresholdSelect.innerHTML = (filter.options || [])
+    .map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
+    .join("");
+  if (!(filter.options || []).some(option => option.value === state.selectedThreshold)) {
+    state.selectedThreshold = filter.default || filter.options?.[0]?.value || "";
+  }
+  elements.thresholdSelect.value = state.selectedThreshold;
+}
+
+function syncConfiguredSelect(filter, select, labelNode, includeAll) {
+  if (!filter || !select) return;
+  setControlLabel(labelNode, filter.label);
+  const values = uniqueValues(state.rows, filter.field, filter.preferred_order);
+  const options = [
+    ...(includeAll ? [{ value: "all", label: "全部" }] : []),
+    ...values.map(value => ({ value, label: value }))
+  ];
+  syncSelect(select, options, filter.field, includeAll ? "all" : options[0]?.value || "");
+}
+
+function syncSelect(select, options, field, fallbackValue) {
+  select.innerHTML = options
+    .map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
+    .join("");
+  const currentValue = state.filters[field];
+  if (!options.some(option => option.value === currentValue)) {
+    setFilter(field, fallbackValue || options[0]?.value || "");
+  }
+  select.value = state.filters[field] || "";
+}
+
+function syncColumnSelect(view) {
+  const columns = columnsForRows(state.rows);
+  if (isCompactLayout() && view.fixed_compact_columns) {
+    state.selectedColumns = view.fixed_compact_columns.filter(column => columns.includes(column));
+  }
+  if (!state.selectedColumns.length && isCompactLayout()) {
+    state.selectedColumns = view.mobile_default_columns?.filter(column => columns.includes(column)) || columns;
+  }
+  if (!state.selectedColumns.length) state.selectedColumns = columns;
+  elements.columnSelect.innerHTML = columns
+    .map(column => `<option value="${escapeHtml(column)}" ${state.selectedColumns.includes(column) ? "selected" : ""}>${escapeHtml(labelForColumn(view, column))}</option>`)
+    .join("");
+}
+
+function render() {
+  const view = getViewConfig();
+  const payload = state.payload || {};
+  if (!view) return;
+  let rows = applyViewFilters(view, [...state.rows]);
+  const query = elements.searchInput.value.trim().toLowerCase();
+  if (query) {
+    rows = rows.filter(row => Object.values(row).some(value => String(value ?? "").toLowerCase().includes(query)));
+  }
+  if (state.sortKey) {
+    rows.sort((a, b) => compareValues(a[state.sortKey], b[state.sortKey]) * (state.sortDir === "asc" ? 1 : -1));
+  }
+
+  elements.rowCount.textContent = rows.length.toLocaleString();
+  const effectiveView = effectiveViewConfig(view);
+  elements.sourceDate.textContent = formatSourceDate(payload);
+  elements.sourceName.textContent = basename(payload.o || "-");
+  renderTable(effectiveView, rows);
+  renderMobileDetails(effectiveView, rows);
+  renderViewCharts(elements.chart, view, effectiveView, rows, { metric: state.selectedMetric });
+  syncHeader(payload);
+}
+
+function applyViewFilters(view, rows) {
+  rows = applyRequiredFieldFilters(rows, view.required_fields);
+  if (view.primary_filter?.sort_field && isCompactLayout()) {
+    rows.sort((a, b) => Number(b[view.primary_filter.sort_field] || 0) - Number(a[view.primary_filter.sort_field] || 0));
+  }
+  rows = applyFieldFilter(rows, view.primary_filter?.field, view.primary_filter?.all_value || "all");
+  (view.secondary_filters || []).forEach(filter => {
+    rows = applyFieldFilter(rows, filter.field, "all");
+  });
+  rows = applyFieldFilter(rows, view.tertiary_filter?.field, "all");
+  rows = applyFieldFilter(rows, view.choice_filter?.field, "all");
+  if (view.threshold_filter && isCompactLayout()) {
+    rows = applyThreshold(rows, view.threshold_filter);
+  }
+  return rows;
+}
+
+function applyRequiredFieldFilters(rows, fields = []) {
+  if (!fields.length) return rows;
+  return rows.filter(row => fields.every(field => row[field] !== null && row[field] !== undefined && row[field] !== ""));
+}
+
+function applyFieldFilter(rows, field, allValue) {
+  if (!field) return rows;
+  const value = state.filters[field];
+  if (!value || value === allValue) return rows;
+  return rows.filter(row => row[field] === value);
+}
+
+function applyThreshold(rows, filter) {
+  const option = optionByValue(filter.options, state.selectedThreshold) || optionByValue(filter.options, filter.default);
+  if (!option || option.value === "all") return rows;
+  const conditions = option.conditions || [];
+  const filtered = rows.filter(row => conditions.some(condition => (
+    Math.abs(Number(row[condition.field] || 0)) >= Number(condition.min_abs || 0)
+  )));
+  return filtered.length ? filtered : rows.slice(0, Number(option.fallback || 0) || rows.length);
+}
+
+function renderTable(view, rows) {
+  const columns = state.selectedColumns.length ? state.selectedColumns : columnsForRows(rows);
+  elements.table.tHead.innerHTML = `<tr>${columns.map(column => `<th data-key="${escapeHtml(column)}">${escapeHtml(labelForColumn(view, column))}${sortMarker(column)}</th>`).join("")}</tr>`;
+  elements.table.tBodies[0].innerHTML = rows.slice(0, 500).map(row => (
+    `<tr>${columns.map(column => renderCell(row[column])).join("")}</tr>`
+  )).join("");
+  elements.table.querySelectorAll("th").forEach(th => {
+    th.addEventListener("click", () => {
+      const key = th.dataset.key;
+      if (state.sortKey === key) {
+        state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+      } else {
+        state.sortKey = key;
+        state.sortDir = "asc";
+      }
+      render();
+    });
+  });
+}
+
+function renderMobileDetails(view, rows) {
+  if (elements.mobilePrimaryDetail) {
+    const showPrimary = view.mobile_layout === "primary_cards" && isCompactLayout() && rows[0];
+    elements.mobilePrimaryDetail.hidden = !showPrimary;
+    elements.mobilePrimaryDetail.innerHTML = showPrimary ? mobileCardsHtml(view.mobile_cards || [], rows[0]) : "";
+  }
+  if (elements.mobileGroupedDetail) {
+    const showGrouped = view.mobile_layout === "grouped_cards" && isCompactLayout() && rows.length;
+    elements.mobileGroupedDetail.hidden = !showGrouped;
+    elements.mobileGroupedDetail.innerHTML = showGrouped
+      ? rows.map(row => `<section class="mobile-group">${mobileCardsHtml(view.mobile_cards || [], row)}</section>`).join("")
+      : "";
+  }
+}
+
+function mobileCardsHtml(cards, row) {
+  return cards.map(card => (
+    `<article class="mobile-stat ${escapeHtml(card.class || "")}"><span>${escapeHtml(card.label)}</span><strong>${escapeHtml(formatDisplayValue(row[card.field], card.class || ""))}</strong></article>`
+  )).join("");
+}
+
+function syncViewControls() {
+  const view = getViewConfig();
+  const compact = isCompactLayout();
+  if (!view) return;
+  const effectiveView = effectiveViewConfig(view);
+  const mobileLayout = effectiveView.mobile_layout || "";
+  const hidesCompactTable = Boolean(effectiveView.hide_table_compact || (mobileLayout && mobileLayout !== "table"));
+  document.body.dataset.view = view.id;
+  document.body.dataset.layout = compact ? mobileLayout || "compact" : "full";
+  setHidden(elements.dateControl, compact);
+  setHidden(elements.headerDateControl, !compact);
+  setHidden(elements.primaryControl, !view.primary_filter);
+  setHidden(elements.secondaryControlA, !view.secondary_filters?.[0]);
+  setHidden(elements.secondaryControlB, !view.secondary_filters?.[1]);
+  setHidden(elements.tertiaryControl, !view.tertiary_filter);
+  setHidden(elements.choiceControl, !view.choice_filter);
+  setHidden(elements.metricControl, !effectiveView.metric_filter);
+  setHidden(elements.thresholdControl, !effectiveView.threshold_filter);
+  setHidden(elements.columnControl, compact && hidesCompactTable);
+  if (compact && hidesCompactTable) {
+    elements.toolbar?.classList.remove("is-expanded");
+    elements.filterToggle?.setAttribute("aria-expanded", "false");
+  }
+}
+
+function syncHeader(payload = state.payload) {
+  const view = getViewConfig();
+  const compact = isCompactLayout();
+  if (compact && view) {
+    elements.appTitle.hidden = true;
+    setHidden(elements.headerDateControl, false);
+    const filterText = activeFilterLabels(view).join(" / ");
+    elements.statusLine.textContent = filterText ? `${view.label} / ${filterText}` : view.label;
+    elements.refreshButton.textContent = "更新";
+  } else {
+    elements.appTitle.hidden = false;
+    setHidden(elements.headerDateControl, true);
+    elements.appTitle.textContent = layoutConfig?.app_title || "Mobile Viewer";
+    elements.statusLine.textContent = state.statusText || elements.statusLine.textContent;
+    elements.refreshButton.textContent = "Refresh";
+  }
+}
+
+function activeFilterLabels(view) {
+  const labels = [];
+  const primary = view.primary_filter;
+  if (primary && state.filters[primary.field] && state.filters[primary.field] !== (primary.all_value || "all")) {
+    labels.push(state.filters[primary.field]);
+  }
+  (view.secondary_filters || []).forEach(filter => {
+    if (state.filters[filter.field]) labels.push(state.filters[filter.field]);
+  });
+  if (view.tertiary_filter && state.filters[view.tertiary_filter.field]) labels.push(state.filters[view.tertiary_filter.field]);
+  if (view.choice_filter && state.filters[view.choice_filter.field]) {
+    labels.push(labelForOption(view.choice_filter.options, state.filters[view.choice_filter.field]));
+  }
+  return labels.filter(Boolean);
+}
+
+function columnsForRows(rows) {
+  const keys = [];
+  rows.slice(0, 20).forEach(row => {
+    Object.keys(row).forEach(key => {
+      if (!keys.includes(key)) keys.push(key);
+    });
+  });
+  return keys;
+}
+
+function uniqueValues(rows, field, preferredOrder = []) {
+  const values = new Set(rows.map(row => row[field]).filter(Boolean));
+  const preferred = preferredOrder.filter(value => values.has(value));
+  const remaining = [...values].filter(value => !preferred.includes(value));
+  return [...preferred, ...remaining];
+}
+
+function defaultDateForView(view) {
+  return isCompactLayout() ? view.compact_date || view.default_date || "latest" : view.default_date || "latest";
+}
+
+function getViewConfig() {
+  return viewMap.get(state.view);
+}
+
+function setFilter(field, value) {
+  if (!field) return;
+  state.filters[field] = value;
+}
+
+function setHidden(element, hidden) {
+  if (element) element.hidden = Boolean(hidden);
+}
+
+function setControlLabel(element, value) {
+  if (element) element.textContent = value || "";
+}
+
+function labelForColumn(view, column) {
+  return view.columns?.[column] || column;
+}
+
+function labelForOption(options = [], value) {
+  return optionByValue(options, value)?.label || value;
+}
+
+function optionByValue(options = [], value) {
+  return options.find(option => option.value === value);
+}
+
+function renderCell(value) {
+  const isNumber = typeof value === "number";
+  const text = isNumber ? formatNumber(value) : (value ?? "");
+  return `<td class="${isNumber ? "number" : ""}">${escapeHtml(text)}</td>`;
+}
+
+function sortMarker(column) {
+  if (state.sortKey !== column) return "";
+  return state.sortDir === "asc" ? " ▲" : " ▼";
+}
+
+function compareValues(a, b) {
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  return String(a ?? "").localeCompare(String(b ?? ""), "zh-Hant");
+}
+
+function compareConfiguredValues(a, b) {
+  const parsedA = parseSortablePrefix(a);
+  const parsedB = parseSortablePrefix(b);
+  if (parsedA.number !== parsedB.number) return parsedA.number - parsedB.number;
+  if (parsedA.rank !== parsedB.rank) return parsedA.rank - parsedB.rank;
+  return parsedA.suffix.localeCompare(parsedB.suffix, "zh-Hant", { numeric: true });
+}
+
+function parseSortablePrefix(value) {
+  const text = String(value ?? "");
+  const match = text.match(/^(\d+)(.*)$/);
+  const suffix = match?.[2] || "";
+  const suffixRank = suffix.startsWith("W") ? 1 : suffix.startsWith("F") ? 2 : suffix ? 3 : 0;
+  return {
+    number: Number(match?.[1] || Number.MAX_SAFE_INTEGER),
+    rank: suffixRank,
+    suffix
+  };
+}
+
+function basename(path) {
+  const parts = String(path).split("/");
+  return parts[parts.length - 1] || path;
+}
+
+function displayDate(date, fallback = "") {
+  return date ? String(date).replaceAll("-", "/") : fallback;
+}
+
+function formatSourceDate(payload) {
+  if (payload.s?.length > 1) {
+    return isCompactLayout() ? `${displayDate(payload.s[0])} 等 ${payload.s.length} 日` : payload.s.map(displayDate).join(" ~ ");
+  }
+  return displayDate(payload.d, "-");
+}
+
+function formatDisplayValue(value, valueType = "") {
+  if (typeof value !== "number") return value ?? "-";
+  const suffix = String(valueType).includes("ratio") ? "%" : "";
+  return `${formatNumber(value)}${suffix}`;
+}
+
+function formatNumber(value) {
+  return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function isCompactLayout() {
+  return window.matchMedia("(max-width: 860px)").matches;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function initInstallHint() {
+  const isStandalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+  const platform = navigator.platform || "";
+  const userAgent = navigator.userAgent || "";
+  const isIOS = /iPad|iPhone|iPod/.test(platform) || /iPad|iPhone|iPod/.test(userAgent) || (platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isSafari = /^((?!CriOS|FxiOS|EdgiOS|OPiOS).)*Safari/i.test(userAgent);
+  const dismissed = localStorage.getItem("staticViewerInstallHintDismissed") === "1";
+
+  if (elements.installHint && isIOS && isSafari && !isStandalone && !dismissed) {
+    elements.installHint.hidden = false;
+    document.body.classList.add("has-install-hint");
+  }
+
+  elements.installHintClose?.addEventListener("click", () => {
+    localStorage.setItem("staticViewerInstallHintDismissed", "1");
+    elements.installHint.hidden = true;
+    document.body.classList.remove("has-install-hint");
+  });
+}
+
+async function syncKeyPanel(errorMessage = "") {
+  if (!elements.keyPanel) return;
+  const device = await getDeviceState();
+  const endpoint = window.OptionPwaConfig?.encryptedDataEndpoint || "";
+  const endpointReady = endpoint && !endpoint.includes("REPLACE_WITH");
+  const hasVisibleCode = Boolean(elements.registrationCode?.value);
+  const shouldShowPanel = !device.hasKey || devicePanelOpen || Boolean(errorMessage) || hasVisibleCode || clearConfirmOpen;
+  elements.keyPanel.hidden = !shouldShowPanel;
+  if (elements.deviceButton) {
+    elements.deviceButton.hidden = !device.hasKey;
+    elements.deviceButton.setAttribute("aria-expanded", String(shouldShowPanel));
+  }
+  elements.createKeyButton.hidden = device.hasKey;
+  elements.showRegistrationButton.hidden = !device.hasKey;
+  if (elements.diagnosticsButton) {
+    elements.diagnosticsButton.hidden = false;
+  }
+  if (elements.pushRegistrationButton) {
+    elements.pushRegistrationButton.hidden = !device.hasKey || !isPushSupported();
+  }
+  if (elements.notificationTestButton) {
+    elements.notificationTestButton.hidden = !device.hasKey || !isPushSupported();
+  }
+  elements.clearKeyButton.hidden = !device.hasKey;
+  setClearConfirmOpen(clearConfirmOpen && device.hasKey);
+  elements.keyPanelTitle.textContent = device.hasKey ? "裝置已建立" : "裝置尚未建立";
+  if (!endpointReady) {
+    elements.keyPanelStatus.textContent = "尚未設定資料來源";
+    return;
+  }
+  if (!device.hasKey) {
+    elements.keyPanelStatus.textContent = errorMessage
+      ? friendlyDeviceError(errorMessage, device)
+      : `建立裝置後，將註冊碼加入同步設定。目前 origin：${window.location.origin}`;
+    return;
+  }
+  elements.keyPanelStatus.textContent = errorMessage
+    ? friendlyDeviceError(errorMessage, device)
+    : `Device ${device.deviceId.slice(0, 8)} / ${device.createdAt.slice(0, 10)}`;
+}
+
+function friendlyDeviceError(errorMessage, device) {
+  if (errorMessage.includes("尚未建立解密金鑰")) {
+    return `此網址尚未建立裝置。目前 origin：${window.location.origin}`;
+  }
+  if (errorMessage.includes("尚未授權") || errorMessage.includes("金鑰已失效")) {
+    const id = device.deviceId ? device.deviceId.slice(0, 8) : "-";
+    return `此裝置尚未授權。Device ${id}，請按「顯示註冊碼」後加入遠端。`;
+  }
+  if (errorMessage.includes("資料封包讀取逾時") || errorMessage.includes("無法載入資料封包")) {
+    return "資料來源無法載入。請確認可連網，或按「診斷」複製狀態。";
+  }
+  return errorMessage;
+}
+
+function setClearConfirmOpen(open) {
+  clearConfirmOpen = Boolean(open);
+  if (elements.clearConfirm) {
+    elements.clearConfirm.hidden = !clearConfirmOpen;
+  }
+  if (elements.clearKeyButton) {
+    elements.clearKeyButton.setAttribute("aria-expanded", String(clearConfirmOpen));
+  }
+}
+
+async function showRegistrationCode(code, statusText = "註冊碼已顯示") {
+  if (!elements.registrationCode) return;
+  elements.registrationCode.value = code;
+  elements.registrationCode.hidden = false;
+  elements.registrationCode.focus();
+  elements.registrationCode.select();
+  try {
+    await navigator.clipboard.writeText(code);
+    elements.keyPanelStatus.textContent = statusText.replace("已顯示", "已複製");
+  } catch {
+    elements.keyPanelStatus.textContent = statusText;
+  }
+}
