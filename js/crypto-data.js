@@ -203,7 +203,11 @@ export async function getLayoutConfig() {
 
 async function loadDecryptedPayload() {
   if (!cachedPayloadPromise) {
-    cachedPayloadPromise = loadDecryptedPayloadOnce();
+    const pending = loadDecryptedPayloadOnce().catch(error => {
+      if (cachedPayloadPromise === pending) cachedPayloadPromise = null;
+      throw error;
+    });
+    cachedPayloadPromise = pending;
   }
   return cachedPayloadPromise;
 }
@@ -257,7 +261,16 @@ function endpointHost(endpoint) {
   }
 }
 
-function loadEnvelopeJsonp(endpoint) {
+async function loadEnvelopeJsonp(endpoint) {
+  try {
+    return await loadEnvelopeJsonpOnce(endpoint);
+  } catch {
+    // Google ContentService 的轉址偶爾失敗；只再試一次，避免無限等待。
+    return loadEnvelopeJsonpOnce(endpoint);
+  }
+}
+
+function loadEnvelopeJsonpOnce(endpoint) {
   return new Promise((resolve, reject) => {
     const callbackName = `${ENVELOPE_CALLBACK_PREFIX}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const url = new URL(endpoint);
@@ -267,7 +280,7 @@ function loadEnvelopeJsonp(endpoint) {
     const timeout = window.setTimeout(() => {
       cleanup();
       reject(new Error("資料封包讀取逾時"));
-    }, 20000);
+    }, 30000);
 
     function cleanup() {
       window.clearTimeout(timeout);

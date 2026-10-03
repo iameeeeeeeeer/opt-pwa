@@ -1,4 +1,4 @@
-const CACHE_VERSION = "static-viewer-v44";
+const CACHE_VERSION = "static-viewer-v45";
 const SHELL_PATHS = [
   "./",
   "config.js",
